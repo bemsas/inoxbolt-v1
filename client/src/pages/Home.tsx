@@ -8,7 +8,6 @@ import Catalogues from '@/components/Catalogues';
 import Contact from '@/components/Contact';
 import Footer from '@/components/Footer';
 import EarlyAccessModal from '@/components/EarlyAccessModal';
-import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,12 +27,10 @@ export default function Home() {
 
       <Footer />
       
-      <EarlyAccessModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <EarlyAccessModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
-      
-      <FloatingWhatsApp />
     </div>
   );
 }
