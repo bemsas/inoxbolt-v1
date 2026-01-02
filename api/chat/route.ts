@@ -2,10 +2,6 @@ import { searchChunks, getOrCreateChatSession, addChatMessage, getChatHistory } 
 import { generateEmbedding, generateChatResponse } from '../../lib/embeddings';
 import { nanoid } from 'nanoid';
 
-export const config = {
-  runtime: 'edge',
-};
-
 interface ChatRequest {
   message: string;
   sessionId?: string;

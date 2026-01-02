@@ -3,10 +3,6 @@ import { nanoid } from 'nanoid';
 import { createDocument, listDocuments, getStats } from '../../../lib/db/client';
 import { inngest } from '../../../lib/inngest/client';
 
-export const config = {
-  runtime: 'edge',
-};
-
 // GET /api/admin/documents - List all documents
 export async function GET() {
   try {

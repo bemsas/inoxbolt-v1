@@ -95,10 +95,11 @@ export async function updateDocumentStatus(
   status: Document['status'],
   extra?: { page_count?: number; error_message?: string; processed_at?: Date }
 ): Promise<void> {
+  const processedAtStr = extra?.processed_at ? extra.processed_at.toISOString() : null;
   if (extra?.page_count !== undefined) {
     await sql`
       UPDATE documents
-      SET status = ${status}, page_count = ${extra.page_count}, processed_at = ${extra.processed_at || null}
+      SET status = ${status}, page_count = ${extra.page_count}, processed_at = ${processedAtStr}
       WHERE id = ${id}
     `;
   } else if (extra?.error_message) {

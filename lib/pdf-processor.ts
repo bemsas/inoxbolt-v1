@@ -1,5 +1,6 @@
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import pdf from 'pdf-parse';
+// @ts-expect-error - pdf-parse has no type declarations
+import pdfParse from 'pdf-parse';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 
 export interface ProcessedChunk {
   content: string;
@@ -37,7 +38,7 @@ function cleanText(text: string): string {
 
 export async function processPDF(buffer: Buffer): Promise<PDFProcessingResult> {
   // Parse PDF
-  const data = await pdf(buffer);
+  const data = await pdfParse(buffer);
   const pageCount = data.numpages;
 
   // Clean the extracted text
@@ -47,7 +48,7 @@ export async function processPDF(buffer: Buffer): Promise<PDFProcessingResult> {
   const splitDocs = await textSplitter.createDocuments([cleanedText]);
 
   // Create processed chunks
-  const chunks: ProcessedChunk[] = splitDocs.map((doc, index) => ({
+  const chunks: ProcessedChunk[] = splitDocs.map((doc: { pageContent: string }, index: number) => ({
     content: doc.pageContent,
     pageNumber: 1, // pdf-parse doesn't give per-page text, so we approximate
     chunkIndex: index,
@@ -62,28 +63,16 @@ export async function processPDF(buffer: Buffer): Promise<PDFProcessingResult> {
 
 // Process PDF with page-by-page extraction for better accuracy
 export async function processPDFByPage(buffer: Buffer): Promise<PDFProcessingResult> {
-  const data = await pdf(buffer, {
-    // Custom page render to track page numbers
-    pagerender: function (pageData: { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }) {
-      return pageData.getTextContent().then(function (textContent) {
-        let text = '';
-        for (const item of textContent.items) {
-          text += item.str + ' ';
-        }
-        return text;
-      });
-    },
-  });
+  const data = await pdfParse(buffer);
 
   const pageCount = data.numpages;
   const allChunks: ProcessedChunk[] = [];
 
-  // If we have page-separated text, process each page
-  // Otherwise fall back to the full text processing
+  // Process the full text
   const cleanedText = cleanText(data.text);
   const splitDocs = await textSplitter.createDocuments([cleanedText]);
 
-  splitDocs.forEach((doc, index) => {
+  splitDocs.forEach((doc: { pageContent: string }, index: number) => {
     allChunks.push({
       content: doc.pageContent,
       pageNumber: Math.ceil(((index + 1) / splitDocs.length) * pageCount), // Approximate page number

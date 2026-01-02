@@ -1,10 +1,6 @@
 import { searchChunks } from '../../lib/db/client';
 import { generateEmbedding } from '../../lib/embeddings';
 
-export const config = {
-  runtime: 'edge',
-};
-
 interface SearchRequest {
   query: string;
   limit?: number;

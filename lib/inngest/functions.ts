@@ -1,5 +1,4 @@
 import { inngest } from './client';
-import { get } from '@vercel/blob';
 import { processPDF } from '../pdf-processor';
 import { generateEmbeddings } from '../embeddings';
 import {
@@ -7,7 +6,6 @@ import {
   createChunk,
   createProcessingJob,
   updateProcessingJob,
-  getDocument,
 } from '../db/client';
 
 // Process PDF document function
@@ -23,11 +21,11 @@ export const processDocument = inngest.createFunction(
 
     // Step 1: Fetch PDF from blob storage
     const pdfBuffer = await step.run('fetch-pdf', async () => {
-      const blob = await get(blobUrl);
-      if (!blob) {
+      const response = await fetch(blobUrl);
+      if (!response.ok) {
         throw new Error('PDF not found in blob storage');
       }
-      const arrayBuffer = await blob.arrayBuffer();
+      const arrayBuffer = await response.arrayBuffer();
       return Buffer.from(arrayBuffer);
     });
 
@@ -38,7 +36,7 @@ export const processDocument = inngest.createFunction(
 
     // Step 3: Process PDF and extract chunks
     const processingResult = await step.run('process-pdf', async () => {
-      return await processPDF(pdfBuffer);
+      return await processPDF(pdfBuffer as Buffer);
     });
 
     // Step 4: Create processing job for tracking
@@ -109,7 +107,7 @@ export const reprocessAllDocuments = inngest.createFunction(
     name: 'Reprocess All Documents',
   },
   { event: 'documents/reprocess-all' },
-  async ({ step }) => {
+  async () => {
     // This would fetch all documents and trigger reprocessing
     // For now, this is a placeholder
     return { success: true, message: 'Reprocessing triggered' };

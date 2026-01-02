@@ -2,10 +2,6 @@ import { del } from '@vercel/blob';
 import { getDocument, deleteDocument, updateDocumentStatus } from '../../../../lib/db/client';
 import { inngest } from '../../../../lib/inngest/client';
 
-export const config = {
-  runtime: 'edge',
-};
-
 // GET /api/admin/documents/[id] - Get document details
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
