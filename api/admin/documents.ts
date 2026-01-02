@@ -2,9 +2,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
 import { nanoid } from 'nanoid';
 import { sql } from '@vercel/postgres';
-import { Inngest } from 'inngest';
 import { IncomingForm, Fields, Files } from 'formidable';
 import fs from 'fs';
+import { processDocumentSync } from '../../lib/document-processor';
 
 // Helper to parse form data
 function parseForm(req: VercelRequest): Promise<{ fields: Fields; files: Files }> {
@@ -132,22 +132,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `;
       const document = docResult.rows[0];
 
-      // Trigger Inngest processing (create client inline to avoid module-level init issues)
-      const inngest = new Inngest({ id: 'inoxbolt' });
-      await inngest.send({
-        name: 'document/uploaded',
-        data: {
-          documentId: document.id,
-          blobUrl: blob.url,
-        },
-      });
+      // Process document synchronously (no external queue needed)
+      try {
+        const result = await processDocumentSync(
+          document.id,
+          blob.url,
+          originalName,
+          supplier || null
+        );
 
-      return res.status(201).json({
-        id: document.id,
-        filename: document.original_name,
-        status: document.status,
-        message: 'Document uploaded successfully. Processing started.',
-      });
+        return res.status(201).json({
+          id: document.id,
+          filename: document.original_name,
+          status: 'completed',
+          pageCount: result.pageCount,
+          chunksCreated: result.chunksCreated,
+          processingTimeMs: result.processingTimeMs,
+          message: 'Document uploaded and processed successfully.',
+        });
+      } catch (processingError) {
+        console.error('Processing error:', processingError);
+        // Document is already marked as failed in processDocumentSync
+        return res.status(201).json({
+          id: document.id,
+          filename: document.original_name,
+          status: 'failed',
+          error: processingError instanceof Error ? processingError.message : 'Processing failed',
+          message: 'Document uploaded but processing failed.',
+        });
+      }
     } catch (error) {
       console.error('Upload error:', error);
       return res.status(500).json({

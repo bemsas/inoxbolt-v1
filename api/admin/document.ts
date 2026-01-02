@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { del } from '@vercel/blob';
 import { getDocument, deleteDocument, updateDocumentStatus } from '../../lib/db/client';
-import { inngest } from '../../lib/inngest/client';
+import { processDocumentSync } from '../../lib/document-processor';
+import { deleteDocumentChunks } from '../../lib/vector/client';
 
 // UUID validation helper
 function isValidUUID(str: string): boolean {
@@ -59,6 +60,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await del(document.blob_url);
       }
 
+      // Delete chunks from vector store
+      await deleteDocumentChunks(id);
+
       // Delete from database (cascades to chunks)
       await deleteDocument(id);
 
@@ -83,18 +87,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Reset document status
-      await updateDocumentStatus(id, 'pending');
+      await updateDocumentStatus(id, 'processing');
 
-      // Trigger reprocessing
-      await inngest.send({
-        name: 'document/uploaded',
-        data: {
-          documentId: id,
-          blobUrl: document.blob_url,
-        },
+      // Delete existing chunks from vector store
+      await deleteDocumentChunks(id);
+
+      // Process document synchronously
+      const result = await processDocumentSync(
+        id,
+        document.blob_url,
+        document.filename,
+        document.supplier
+      );
+
+      if (!result.success) {
+        await updateDocumentStatus(id, 'failed', result.error);
+        return res.status(500).json({ error: 'Reindexing failed', details: result.error });
+      }
+
+      return res.status(200).json({
+        message: 'Document reindexed successfully',
+        chunksCreated: result.chunksCreated
       });
-
-      return res.status(200).json({ message: 'Reindexing started' });
     } catch (error) {
       console.error('Reindex error:', error);
       return res.status(500).json({ error: 'Failed to reindex document', details: String(error) });

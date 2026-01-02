@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { searchChunks, getOrCreateChatSession, addChatMessage, getChatHistory } from '../lib/db/client';
+import { getOrCreateChatSession, addChatMessage, getChatHistory } from '../lib/db/client';
+import { searchChunks } from '../lib/vector/client';
 import { generateEmbedding, generateChatResponse } from '../lib/embeddings';
 import { nanoid } from 'nanoid';
 
@@ -48,19 +49,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate embedding for the query to find relevant context
     const queryEmbedding = await generateEmbedding(message);
 
-    // Search for relevant chunks (top 5)
+    // Search for relevant chunks using Upstash Vector (top 5)
     const relevantChunks = await searchChunks(queryEmbedding, 5);
 
-    // Build context from relevant chunks
+    // Build context from relevant chunks with product metadata
     const context = relevantChunks
-      .map((chunk, i) => `[${i + 1}] From ${chunk.document_filename} (page ${chunk.page_number || 'N/A'}):\n${chunk.content}`)
+      .map((chunk, i) => {
+        const meta = chunk.metadata;
+        const productInfo = [
+          meta.productType && `Type: ${meta.productType}`,
+          meta.threadType && `Thread: ${meta.threadType}`,
+          meta.material && `Material: ${meta.material}`,
+          meta.standard && `Standard: ${meta.standard}`,
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+        return `[${i + 1}] From ${meta.documentName} (page ${meta.pageNumber || 'N/A'})${productInfo ? ` [${productInfo}]` : ''}:\n${chunk.content}`;
+      })
       .join('\n\n');
 
     // Prepare sources for response
     const sources = relevantChunks.map((chunk) => ({
       chunkId: chunk.id,
-      documentName: chunk.document_filename,
-      pageNumber: chunk.page_number || 0,
+      documentName: chunk.metadata.documentName,
+      pageNumber: chunk.metadata.pageNumber || 0,
       excerpt: chunk.content.substring(0, 100) + '...',
     }));
 

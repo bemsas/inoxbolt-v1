@@ -8,8 +8,17 @@
       "maxDuration": 60,
       "memory": 1024
     },
-    "api/**/*.ts": {
+    "api/compatibility.ts": {
+      "maxDuration": 30
+    },
+    "api/search.ts": {
+      "maxDuration": 30
+    },
+    "api/chat.ts": {
       "maxDuration": 60
+    },
+    "api/**/*.ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
