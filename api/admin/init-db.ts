@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Simple auth check - require a secret key
   const { secret } = req.body || {};
-  if (secret !== process.env.INIT_DB_SECRET && secret !== 'init-inoxbolt-db-2024') {
+  if (!secret || (secret !== process.env.INIT_DB_SECRET && secret !== 'init-inoxbolt-db-2024')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

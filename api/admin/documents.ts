@@ -85,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const uploadedFile = files.file;
       if (!uploadedFile || (Array.isArray(uploadedFile) && uploadedFile.length === 0)) {
-        return res.status(400).json({ error: 'No file provided' });
+        return res.status(400).json({ error: 'No file provided. Request must be multipart/form-data with a file field.' });
       }
 
       const file = Array.isArray(uploadedFile) ? uploadedFile[0] : uploadedFile;

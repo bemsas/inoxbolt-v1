@@ -3,6 +3,12 @@ import { del } from '@vercel/blob';
 import { getDocument, deleteDocument, updateDocumentStatus } from '../../lib/db/client';
 import { inngest } from '../../lib/inngest/client';
 
+// UUID validation helper
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,6 +23,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!id || typeof id !== 'string') {
     return res.status(400).json({ error: 'Document ID is required' });
+  }
+
+  if (!isValidUUID(id)) {
+    return res.status(400).json({ error: 'Invalid document ID format' });
   }
 
   // GET - Get document details
