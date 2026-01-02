@@ -1,5 +1,6 @@
-import { searchChunks } from '../../lib/db/client';
-import { generateEmbedding } from '../../lib/embeddings';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { searchChunks } from '../lib/db/client';
+import { generateEmbedding } from '../lib/embeddings';
 
 interface SearchRequest {
   query: string;
@@ -8,16 +9,26 @@ interface SearchRequest {
   threshold?: number;
 }
 
-export async function POST(request: Request) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const body: SearchRequest = await request.json();
+    const body: SearchRequest = req.body;
     const { query, limit = 10, supplier, threshold = 0.5 } = body;
 
     if (!query || query.trim().length < 2) {
-      return new Response(
-        JSON.stringify({ error: 'Query must be at least 2 characters' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return res.status(400).json({ error: 'Query must be at least 2 characters' });
     }
 
     // Generate embedding for the search query
@@ -42,22 +53,13 @@ export async function POST(request: Request) {
         },
       }));
 
-    return new Response(
-      JSON.stringify({
-        results: filteredResults,
-        query,
-        totalResults: filteredResults.length,
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
+    return res.status(200).json({
+      results: filteredResults,
+      query,
+      totalResults: filteredResults.length,
+    });
   } catch (error) {
     console.error('Search error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Search failed', details: String(error) }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return res.status(500).json({ error: 'Search failed', details: String(error) });
   }
 }

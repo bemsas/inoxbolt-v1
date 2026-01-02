@@ -1,5 +1,6 @@
-import { searchChunks, getOrCreateChatSession, addChatMessage, getChatHistory } from '../../lib/db/client';
-import { generateEmbedding, generateChatResponse } from '../../lib/embeddings';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { searchChunks, getOrCreateChatSession, addChatMessage, getChatHistory } from '../lib/db/client';
+import { generateEmbedding, generateChatResponse } from '../lib/embeddings';
 import { nanoid } from 'nanoid';
 
 interface ChatRequest {
@@ -8,16 +9,26 @@ interface ChatRequest {
   language?: 'en' | 'es';
 }
 
-export async function POST(request: Request) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const body: ChatRequest = await request.json();
+    const body: ChatRequest = req.body;
     const { message, sessionId, language = 'en' } = body;
 
     if (!message || message.trim().length < 1) {
-      return new Response(
-        JSON.stringify({ error: 'Message is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return res.status(400).json({ error: 'Message is required' });
     }
 
     // Get or create chat session
@@ -56,37 +67,35 @@ export async function POST(request: Request) {
     // Generate streaming response
     const stream = await generateChatResponse(message, context, historyFormatted, language);
 
-    // Create a TransformStream to collect the full response while streaming
+    // Set headers for streaming
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Session-Id', token);
+    res.setHeader('X-Sources', JSON.stringify(sources));
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    // Stream the response
+    const reader = stream.getReader();
     let fullResponse = '';
-    const transformStream = new TransformStream({
-      transform(chunk, controller) {
-        const text = new TextDecoder().decode(chunk);
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = new TextDecoder().decode(value);
         fullResponse += text;
-        controller.enqueue(chunk);
-      },
-      async flush() {
-        // Save assistant message after stream completes
-        await addChatMessage(session.id, 'assistant', fullResponse, sources);
-      },
-    });
+        res.write(text);
+      }
+    } finally {
+      reader.releaseLock();
+    }
 
-    const responseStream = stream.pipeThrough(transformStream);
+    // Save assistant message after stream completes
+    await addChatMessage(session.id, 'assistant', fullResponse, sources);
 
-    // Return streaming response with session ID and sources in headers
-    return new Response(responseStream, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Session-Id': token,
-        'X-Sources': JSON.stringify(sources),
-        'Cache-Control': 'no-cache',
-      },
-    });
+    return res.end();
   } catch (error) {
     console.error('Chat error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Chat failed', details: String(error) }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return res.status(500).json({ error: 'Chat failed', details: String(error) });
   }
 }

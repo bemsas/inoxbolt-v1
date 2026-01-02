@@ -16,8 +16,8 @@ const translations: Record<string, Record<Language, string>> = {
   'nav.search_placeholder': { en: 'Search products, codes...', es: 'Buscar productos, códigos...' },
   
   // Hero
-  'hero.headline': { en: 'WHOLESALE FASTENERS.', es: 'FIJACIONES AL POR MAYOR.' },
-  'hero.subheadline': { en: 'OVER 2 MILLION ITEMS IN STOCK.', es: 'MÁS DE 2 MILLONES DE ARTÍCULOS.' },
+  'hero.headline': { en: 'WHOLESALE FASTENERS', es: 'FIJACIONES AL POR MAYOR.' },
+  'hero.subheadline': { en: 'OVER 2 MILLION ITEMS IN STOCK', es: 'MÁS DE 2 MILLONES DE ARTÍCULOS' },
   'hero.description': { 
     en: 'Quick and easy ordering for construction and industry. We deliver anywhere in Europe, with specialized logistics for Mainland Spain and the Canary Islands. Ecommerce coming soon—order now via Email or WhatsApp.', 
     es: 'Pedidos rápidos y fáciles para construcción e industria. Entregamos en toda Europa, con logística especializada para España peninsular y Canarias. Ecommerce próximamente—pida ahora por Email o WhatsApp.' 

@@ -276,7 +276,7 @@ export function RAGProvider({ children }: { children: ReactNode }) {
   }, [fetchDocuments]);
 
   const deleteDocument = useCallback(async (id: string) => {
-    const response = await fetch(`/api/admin/documents/${id}`, {
+    const response = await fetch(`/api/admin/document?id=${id}`, {
       method: 'DELETE',
     });
 
@@ -290,7 +290,7 @@ export function RAGProvider({ children }: { children: ReactNode }) {
   }, [fetchDocuments]);
 
   const reindexDocument = useCallback(async (id: string) => {
-    const response = await fetch(`/api/admin/documents/${id}`, {
+    const response = await fetch(`/api/admin/document?id=${id}&action=reindex`, {
       method: 'POST',
     });
 
