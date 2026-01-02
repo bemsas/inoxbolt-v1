@@ -36,7 +36,11 @@ export const processDocument = inngest.createFunction(
 
     // Step 3: Process PDF and extract chunks
     const processingResult = await step.run('process-pdf', async () => {
-      return await processPDF(pdfBuffer as Buffer);
+      // Reconstruct Buffer from serialized data (Inngest serializes data between steps)
+      const buffer = Buffer.isBuffer(pdfBuffer)
+        ? pdfBuffer
+        : Buffer.from((pdfBuffer as unknown as { data: number[] }).data);
+      return await processPDF(buffer);
     });
 
     // Step 4: Create processing job for tracking
