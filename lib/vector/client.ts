@@ -1,11 +1,20 @@
 import { Index } from '@upstash/vector';
 
-// Initialize Upstash Vector client
-// Requires UPSTASH_VECTOR_REST_URL and UPSTASH_VECTOR_REST_TOKEN env vars
-export const vectorIndex = new Index({
-  url: process.env.UPSTASH_VECTOR_REST_URL!,
-  token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-});
+// Lazy-initialized Upstash Vector client
+let _vectorIndex: Index | null = null;
+
+function getVectorIndex(): Index {
+  if (!_vectorIndex) {
+    if (!process.env.UPSTASH_VECTOR_REST_URL || !process.env.UPSTASH_VECTOR_REST_TOKEN) {
+      throw new Error('Upstash Vector environment variables not configured');
+    }
+    _vectorIndex = new Index({
+      url: process.env.UPSTASH_VECTOR_REST_URL,
+      token: process.env.UPSTASH_VECTOR_REST_TOKEN,
+    });
+  }
+  return _vectorIndex;
+}
 
 // Metadata interface for product chunks
 export interface ChunkMetadata {
@@ -29,7 +38,7 @@ export async function upsertChunk(
   content: string,
   metadata: ChunkMetadata
 ): Promise<void> {
-  await vectorIndex.upsert({
+  await getVectorIndex().upsert({
     id,
     vector: embedding,
     metadata: {
@@ -61,7 +70,7 @@ export async function upsertChunks(
   const batchSize = 100;
   for (let i = 0; i < vectors.length; i += batchSize) {
     const batch = vectors.slice(i, i + batchSize);
-    await vectorIndex.upsert(batch);
+    await getVectorIndex().upsert(batch);
   }
 }
 
@@ -100,7 +109,7 @@ export async function searchChunks(
 
   const filterStr = filterParts.length > 0 ? filterParts.join(' AND ') : undefined;
 
-  const results = await vectorIndex.query({
+  const results = await getVectorIndex().query({
     vector: embedding,
     topK,
     includeMetadata: true,
@@ -168,7 +177,7 @@ export async function findCompatibleProducts(
 
   const filterStr = filterParts.length > 0 ? filterParts.join(' AND ') : undefined;
 
-  const results = await vectorIndex.query({
+  const results = await getVectorIndex().query({
     vector: productEmbedding,
     topK,
     includeMetadata: true,
