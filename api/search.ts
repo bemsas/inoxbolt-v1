@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-// Dynamic imports to avoid initialization issues
+import { searchChunks as searchChunksVector } from '../lib/vector/client';
+import { generateEmbedding } from '../lib/embeddings';
 
 interface SearchRequest {
   query: string;
@@ -32,10 +33,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!query || query.trim().length < 2) {
       return res.status(400).json({ error: 'Query must be at least 2 characters' });
     }
-
-    // Dynamic imports to handle initialization
-    const { generateEmbedding } = await import('../lib/embeddings');
-    const { searchChunks: searchChunksVector } = await import('../lib/vector/client');
 
     // Generate embedding for the search query
     const queryEmbedding = await generateEmbedding(query);

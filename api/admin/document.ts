@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { del } from '@vercel/blob';
 import { getDocument, deleteDocument, updateDocumentStatus } from '../../lib/db/client';
-// Dynamic imports below to avoid loading vector client on GET requests
+import { processDocumentSync } from '../../lib/document-processor';
+import { deleteDocumentChunks } from '../../lib/vector/client';
 
 // UUID validation helper
 function isValidUUID(str: string): boolean {
@@ -60,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Delete chunks from vector store (dynamic import)
-      const { deleteDocumentChunks } = await import('../../lib/vector/client');
+      
       await deleteDocumentChunks(id);
 
       // Delete from database (cascades to chunks)
@@ -90,11 +91,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await updateDocumentStatus(id, 'processing');
 
       // Delete existing chunks from vector store (dynamic import)
-      const { deleteDocumentChunks } = await import('../../lib/vector/client');
+      
       await deleteDocumentChunks(id);
 
       // Process document synchronously (dynamic import, throws on error)
-      const { processDocumentSync } = await import('../../lib/document-processor');
+      
       const result = await processDocumentSync(
         id,
         document.blob_url,

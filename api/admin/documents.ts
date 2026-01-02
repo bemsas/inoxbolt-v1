@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import { sql } from '@vercel/postgres';
 import { IncomingForm, Fields, Files } from 'formidable';
 import fs from 'fs';
-// Dynamic import below to avoid loading vector client on GET
+import { processDocumentSync } from '../../lib/document-processor';
 
 // Helper to parse form data
 function parseForm(req: VercelRequest): Promise<{ fields: Fields; files: Files }> {
@@ -132,9 +132,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `;
       const document = docResult.rows[0];
 
-      // Process document synchronously (dynamic import to avoid loading on GET)
+      // Process document synchronously
       try {
-        const { processDocumentSync } = await import('../../lib/document-processor');
         const result = await processDocumentSync(
           document.id,
           blob.url,
