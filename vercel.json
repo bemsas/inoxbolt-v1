@@ -4,6 +4,10 @@
   "outputDirectory": "dist/public",
   "framework": null,
   "functions": {
+    "api/admin/documents.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
     "api/**/*.ts": {
       "maxDuration": 60
     }
