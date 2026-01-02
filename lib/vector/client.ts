@@ -116,7 +116,7 @@ export async function searchChunks(
 }
 
 // Delete chunks by document ID
-export async function deleteChunksByDocument(documentId: string): Promise<void> {
+export async function deleteDocumentChunks(documentId: string): Promise<void> {
   // Upstash Vector doesn't support filter-based delete directly
   // We need to query and then delete by IDs
   // For now, we'll use a prefix-based approach where chunk IDs include document ID

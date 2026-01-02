@@ -92,7 +92,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Delete existing chunks from vector store
       await deleteDocumentChunks(id);
 
-      // Process document synchronously
+      // Process document synchronously (throws on error)
       const result = await processDocumentSync(
         id,
         document.blob_url,
@@ -100,14 +100,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         document.supplier
       );
 
-      if (!result.success) {
-        await updateDocumentStatus(id, 'failed', result.error);
-        return res.status(500).json({ error: 'Reindexing failed', details: result.error });
-      }
-
       return res.status(200).json({
         message: 'Document reindexed successfully',
-        chunksCreated: result.chunksCreated
+        chunksCreated: result.chunksCreated,
+        pageCount: result.pageCount,
+        processingTimeMs: result.processingTimeMs
       });
     } catch (error) {
       console.error('Reindex error:', error);
