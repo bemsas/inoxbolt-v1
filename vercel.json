@@ -1,12 +1,8 @@
 {
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "vite build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
+  "outputDirectory": "dist/public",
+  "framework": null,
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60
