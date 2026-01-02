@@ -1,8 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { put } from '@vercel/blob';
 import { nanoid } from 'nanoid';
-import { createDocument, listDocuments, getStats } from '../../lib/db/client';
-import { inngest } from '../../lib/inngest/client';
+import { sql } from '@vercel/postgres';
+import { Inngest } from 'inngest';
+
+// Document type
+interface Document {
+  id: string;
+  filename: string;
+  original_name: string;
+  supplier: string | null;
+  file_size_bytes: number | null;
+  page_count: number | null;
+  status: string;
+  error_message: string | null;
+  blob_url: string | null;
+  created_at: Date;
+  updated_at: Date;
+  processed_at: Date | null;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -16,8 +32,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const documents = await listDocuments();
-      const stats = await getStats();
+      // Direct SQL queries to avoid any import issues
+      const docsResult = await sql<Document>`SELECT * FROM documents ORDER BY created_at DESC`;
+      const documents = docsResult.rows;
+
+      const totalDocs = await sql`SELECT COUNT(*) as count FROM documents`;
+      const totalChunks = await sql`SELECT COUNT(*) as count FROM chunks`;
+      const processing = await sql`SELECT COUNT(*) as count FROM documents WHERE status = 'processing'`;
+      const completed = await sql`SELECT COUNT(*) as count FROM documents WHERE status = 'completed'`;
+
+      const stats = {
+        totalDocuments: Number(totalDocs.rows[0].count),
+        totalChunks: Number(totalChunks.rows[0].count),
+        processingCount: Number(processing.rows[0].count),
+        completedCount: Number(completed.rows[0].count),
+      };
 
       return res.status(200).json({
         documents,
@@ -25,7 +54,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (error) {
       console.error('List documents error:', error);
-      return res.status(500).json({ error: 'Failed to list documents', details: String(error) });
+      return res.status(500).json({
+        error: 'Failed to list documents',
+        details: String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   }
 
@@ -79,16 +112,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         contentType: file.type,
       });
 
-      // Create document record in database
-      const document = await createDocument({
-        filename,
-        original_name: file.name,
-        supplier: supplier || undefined,
-        file_size_bytes: file.size,
-        blob_url: blob.url,
-      });
+      // Create document record in database (direct SQL)
+      const docResult = await sql<Document>`
+        INSERT INTO documents (filename, original_name, supplier, file_size_bytes, blob_url)
+        VALUES (${filename}, ${file.name}, ${supplier || null}, ${file.size}, ${blob.url})
+        RETURNING *
+      `;
+      const document = docResult.rows[0];
 
-      // Trigger Inngest processing
+      // Trigger Inngest processing (create client inline to avoid module-level init issues)
+      const inngest = new Inngest({ id: 'inoxbolt' });
       await inngest.send({
         name: 'document/uploaded',
         data: {
@@ -105,7 +138,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     } catch (error) {
       console.error('Upload error:', error);
-      return res.status(500).json({ error: 'Upload failed', details: String(error) });
+      return res.status(500).json({
+        error: 'Upload failed',
+        details: String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   }
 
