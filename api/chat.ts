@@ -29,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Session-Id, X-Sources');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -65,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Get chat history for context (direct SQL)
     const historyResult = await sql<ChatMessage>`
-      SELECT * FROM chat_messages WHERE session_id = ${session.id} ORDER BY created_at DESC LIMIT 10
+      SELECT * FROM chat_messages WHERE session_id = ${session.id} ORDER BY created_at DESC LIMIT 6
     `;
     const history = historyResult.rows.reverse();
     const historyFormatted = history.map((m: ChatMessage) => ({
@@ -79,7 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
 
     // Dynamic imports to avoid bundling issues
-    // Import OpenAI directly instead of from embeddings module
     const OpenAI = (await import('openai')).default;
     const { Index } = await import('@upstash/vector');
 
@@ -89,39 +89,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
     });
 
-    // Generate embedding inline
-    async function generateEmbedding(text: string): Promise<number[]> {
-      const response = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: text,
-      });
-      return response.data[0].embedding;
-    }
+    // Generate embedding for the query
+    const embeddingResponse = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: message,
+    });
+    const queryEmbedding = embeddingResponse.data[0].embedding;
 
-    // Search chunks inline
-    async function searchChunks(embedding: number[], topK: number): Promise<Array<{id: string; score: number; content: string; metadata: any}>> {
-      const results = await vectorIndex.query({
-        vector: embedding,
-        topK,
-        includeMetadata: true,
-      });
-      return results.map((result: any) => ({
-        id: result.id,
-        score: result.score,
-        content: result.metadata?.content || '',
-        metadata: result.metadata,
-      }));
-    }
+    // Search for relevant chunks (top 8 for better context)
+    const searchResults = await vectorIndex.query({
+      vector: queryEmbedding,
+      topK: 8,
+      includeMetadata: true,
+    });
 
-    // Generate embedding for the query to find relevant context
-    const queryEmbedding = await generateEmbedding(message);
+    const relevantChunks = searchResults.map((result: any) => ({
+      id: result.id,
+      score: result.score,
+      content: result.metadata?.content || '',
+      metadata: result.metadata || {},
+    }));
 
-    // Search for relevant chunks using Upstash Vector (top 5)
-    const relevantChunks = await searchChunks(queryEmbedding, 5);
-
-    // Build context from relevant chunks with product metadata
+    // Build context from relevant chunks
     const context = relevantChunks
-      .map((chunk, i) => {
+      .map((chunk: any, i: number) => {
         const meta = chunk.metadata;
         const productInfo = [
           meta.productType && `Type: ${meta.productType}`,
@@ -132,77 +123,92 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .filter(Boolean)
           .join(', ');
 
-        return `[${i + 1}] From ${meta.documentName} (page ${meta.pageNumber || 'N/A'})${productInfo ? ` [${productInfo}]` : ''}:\n${chunk.content}`;
+        return `[${i + 1}] From "${meta.documentName}" (page ${meta.pageNumber || 'N/A'})${productInfo ? ` [${productInfo}]` : ''}:\n${chunk.content}`;
       })
-      .join('\n\n');
+      .join('\n\n---\n\n');
 
     // Prepare sources for response
-    const sources = relevantChunks.map((chunk) => ({
+    const sources = relevantChunks.map((chunk: any) => ({
       chunkId: chunk.id,
-      documentName: chunk.metadata.documentName,
+      documentName: chunk.metadata.documentName || 'Unknown',
       pageNumber: chunk.metadata.pageNumber || 0,
-      excerpt: chunk.content.substring(0, 100) + '...',
+      excerpt: (chunk.content || '').substring(0, 150) + '...',
     }));
 
-    // Generate streaming response inline
+    // Build system prompt
     const systemPrompt = language === 'es'
-      ? `Eres un asistente experto en productos de fijación industrial (tornillos, tuercas, pernos) para Inoxbolt.
+      ? `Eres un asistente experto en productos de fijación industrial (tornillos, tuercas, pernos, arandelas) para Inoxbolt, un distribuidor B2B en las Islas Canarias.
 
-Usa el siguiente contexto de los catálogos de productos:
-
-<context>
+CONTEXTO DE LOS CATÁLOGOS DE PRODUCTOS:
 ${context}
-</context>
 
-Directrices:
-- Responde en español
-- Sé preciso y técnico
-- Si la información no está en el contexto, indícalo
-- Menciona códigos de producto cuando sea relevante`
-      : `You are an expert assistant for industrial fasteners (bolts, nuts, screws) at Inoxbolt.
+INSTRUCCIONES:
+- Responde en español de manera profesional y técnica
+- Usa la información del contexto para responder con precisión
+- Menciona códigos de producto, estándares (DIN, ISO) y especificaciones cuando estén disponibles
+- Si la información específica no está en el contexto, indica qué información tienes disponible y sugiere alternativas
+- Sé conciso pero completo en tus respuestas
+- Si mencionas precios, indica que son orientativos y pueden variar`
+      : `You are an expert assistant for industrial fasteners (bolts, nuts, screws, washers) at Inoxbolt, a B2B distributor in the Canary Islands.
 
-Use the following context from product catalogs:
-
-<context>
+CONTEXT FROM PRODUCT CATALOGS:
 ${context}
-</context>
 
-Guidelines:
-- Be precise and technical
-- If the information is not in the context, clearly state that
-- Mention product codes when relevant`;
+INSTRUCTIONS:
+- Respond professionally and technically
+- Use the context information to answer precisely
+- Mention product codes, standards (DIN, ISO) and specifications when available
+- If specific information is not in the context, indicate what information you have and suggest alternatives
+- Be concise but thorough in your responses
+- If mentioning prices, indicate they are indicative and may vary`;
 
     const chatMessages: any[] = [
       { role: 'system', content: systemPrompt },
-      ...historyFormatted.map((h: any) => ({ role: h.role, content: h.content })),
+      ...historyFormatted,
       { role: 'user', content: message },
     ];
 
-    const chatResponse = await openai.chat.completions.create({
+    // Set headers for streaming BEFORE starting the stream
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Session-Id', token);
+    res.setHeader('X-Sources', JSON.stringify(sources));
+    res.setHeader('Cache-Control', 'no-cache');
+
+    // Create streaming response
+    const stream = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: chatMessages,
-      stream: false,
+      stream: true,
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: 1500,
     });
 
-    const fullResponse = chatResponse.choices[0]?.message?.content || '';
+    // Stream the response
+    let fullResponse = '';
 
-    // Save assistant message (direct SQL)
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        fullResponse += content;
+        res.write(content);
+      }
+    }
+
+    // Save assistant message after stream completes
     const sourcesJson = JSON.stringify(sources);
     await sql`
       INSERT INTO chat_messages (session_id, role, content, sources)
       VALUES (${session.id}, 'assistant', ${fullResponse}, ${sourcesJson}::jsonb)
     `;
 
-    // Return JSON response
-    return res.status(200).json({
-      response: fullResponse,
-      sessionId: token,
-      sources,
-    });
+    return res.end();
   } catch (error) {
     console.error('Chat error:', error);
-    return res.status(500).json({ error: 'Chat failed', details: String(error) });
+    // If headers haven't been sent yet, send JSON error
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Chat failed', details: String(error) });
+    }
+    // If streaming already started, just end the response
+    return res.end();
   }
 }
