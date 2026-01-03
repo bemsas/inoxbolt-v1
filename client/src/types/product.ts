@@ -14,6 +14,13 @@ export interface ProductInfo {
   pageNumber?: number;
   documentName?: string;
   score?: number;
+  // Enhanced metadata from vector DB
+  productName?: string;
+  dimensions?: string;
+  finish?: string;
+  priceInfo?: string;
+  packagingUnit?: string;
+  productType?: string;
 }
 
 /**

@@ -8,33 +8,50 @@ import { SearchFilters, FilterState } from './components/SearchFilters';
 import { SearchResultsGrid } from './components/SearchResultsGrid';
 import { ProductDetailModal } from '@/components/product';
 
-// Convert SearchResult to ProductInfo
+// Convert SearchResult to ProductInfo - uses API-provided metadata
 function toProductInfo(result: SearchResult): ProductInfo {
+  // Prefer API-provided metadata over re-extraction
   const content = result.content || result.snippet;
 
-  // Extract standard (DIN/ISO patterns)
-  const standardMatch = content.match(/\b(DIN\s*\d+|ISO\s*\d+)\b/i);
-  const standard = standardMatch ? standardMatch[0].replace(/\s+/g, ' ').toUpperCase() : undefined;
+  // Fallback extraction only if API didn't provide metadata
+  let standard = result.standard;
+  let threadType = result.threadType;
+  let material = result.material;
 
-  // Extract thread type (M6, M8x30, etc.)
-  const threadMatch = content.match(/\bM\d{1,2}(?:x[\d.]+)?\b/i);
-  const threadType = threadMatch ? threadMatch[0] : undefined;
+  if (!standard) {
+    const standardMatch = content.match(/\b(DIN\s*\d+|ISO\s*\d+)\b/i);
+    standard = standardMatch ? standardMatch[0].replace(/\s+/g, ' ').toUpperCase() : undefined;
+  }
 
-  // Extract material (A2, A4, 8.8, etc.)
-  const materialMatch = content.match(/\b(A[24]|304|316|8\.8|10\.9|12\.9)\b/i);
-  const material = materialMatch ? materialMatch[0].toUpperCase() : undefined;
+  if (!threadType) {
+    const threadMatch = content.match(/\bM\d{1,2}(?:x[\d.]+)?\b/i);
+    threadType = threadMatch ? threadMatch[0] : undefined;
+  }
+
+  if (!material) {
+    const materialMatch = content.match(/\b(A[24]|304|316|8\.8|10\.9|12\.9)\b/i);
+    material = materialMatch ? materialMatch[0].toUpperCase() : undefined;
+  }
 
   return {
     id: result.id,
-    name: '',
+    name: result.productName || '',
     content: result.snippet || result.content,
     standard,
     threadType,
     material,
+    headType: result.headType,
     supplier: result.document.supplier || undefined,
     pageNumber: result.pageNumber || undefined,
     documentName: result.document.filename,
     score: result.score,
+    // Enhanced metadata
+    productName: result.productName,
+    dimensions: result.dimensions,
+    finish: result.finish,
+    priceInfo: result.priceInfo,
+    packagingUnit: result.packagingUnit,
+    productType: result.productType,
   };
 }
 

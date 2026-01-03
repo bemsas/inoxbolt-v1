@@ -576,22 +576,26 @@ export const DEFAULT_SECTIONS: ProductPageSections = {
 
 /**
  * Convert base ProductInfo to ExtendedProductInfo with extracted data
+ * Now uses enhanced metadata from vector DB when available
  */
 export function toExtendedProductInfo(
   base: import('./product').ProductInfo,
   additionalData?: Partial<ExtendedProductInfo>
 ): ExtendedProductInfo {
-  // Extract dimensions from content if available
-  const dimensions = extractDimensions(base.content);
+  // Use API-provided dimensions if available, otherwise extract from content
+  let dimensions = base.dimensions ? parseDimensionsString(base.dimensions) : extractDimensions(base.content);
 
-  // Determine category from content/name
-  const category = inferCategory(base.name, base.content);
+  // Determine category from API productType or infer from content
+  const category = base.productType
+    ? (base.productType as FastenerCategory)
+    : inferCategory(base.name || base.productName || '', base.content);
 
-  // Build material specification
+  // Build material specification with finish from API
   const material = base.material ? {
     code: base.material,
     name: base.material,
     group: inferMaterialGroup(base.material),
+    finish: base.finish ? (base.finish.replace(/-/g, '_') as SurfaceFinish) : undefined,
   } as MaterialSpecification : undefined;
 
   // Build source reference
@@ -612,9 +616,22 @@ export function toExtendedProductInfo(
     });
   }
 
+  // Build pricing data from enhanced metadata
+  const pricing: PricingData | undefined = base.priceInfo || base.packagingUnit ? {
+    currency: 'EUR',
+    moq: base.packagingUnit ? parseInt(base.packagingUnit) || 1 : 1,
+    packagingQuantity: base.packagingUnit ? parseInt(base.packagingUnit) || 100 : 100,
+    tiers: [],
+    availability: 'in_stock',
+  } : undefined;
+
+  // Use productName from API if available
+  const productName = base.productName || base.name || extractProductName(base);
+
   return {
     id: base.id,
-    name: base.name || extractProductName(base),
+    name: productName,
+    shortDescription: base.priceInfo ? `${productName} - ${base.priceInfo}` : undefined,
     content: base.content,
     category,
     dimensions,
@@ -623,6 +640,7 @@ export function toExtendedProductInfo(
     threadType: base.threadType as ExtendedProductInfo['threadType'],
     primaryStandard: base.standard,
     certifications,
+    pricing,
     compatibleProducts: [],
     documents: [],
     images: [],
@@ -631,6 +649,32 @@ export function toExtendedProductInfo(
     score: base.score,
     ...additionalData,
   };
+}
+
+/**
+ * Parse dimensions string from API (e.g., "M8, M10, M12x30") into FastenerDimensions
+ */
+function parseDimensionsString(dimensionsStr: string): FastenerDimensions | undefined {
+  if (!dimensionsStr) return undefined;
+
+  const dimensions: FastenerDimensions = {} as FastenerDimensions;
+
+  // Get first dimension as primary
+  const firstDim = dimensionsStr.split(',')[0].trim();
+
+  // Extract diameter
+  const diameterMatch = firstDim.match(/M(\d+(?:\.\d+)?)/i);
+  if (diameterMatch) {
+    dimensions.diameter = `M${diameterMatch[1]}`;
+  }
+
+  // Extract length if present
+  const lengthMatch = firstDim.match(/[xX](\d+)/);
+  if (lengthMatch) {
+    dimensions.length = parseInt(lengthMatch[1], 10);
+  }
+
+  return Object.keys(dimensions).length > 0 ? dimensions : undefined;
 }
 
 /**

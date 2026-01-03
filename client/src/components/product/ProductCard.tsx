@@ -84,7 +84,7 @@ export function ProductCard({
             {productName}
           </h3>
 
-          {/* Metadata badges */}
+          {/* Primary badges: Standard, Thread, Material */}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {product.standard && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">
@@ -103,7 +103,29 @@ export function ProductCard({
                 {materialInfo.name}
               </span>
             )}
+            {product.headType && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-xs font-medium">
+                {product.headType}
+              </span>
+            )}
           </div>
+
+          {/* Secondary info: Finish, Packaging, Price */}
+          {(product.finish || product.packagingUnit || product.priceInfo) && (
+            <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500">
+              {product.finish && (
+                <span className="capitalize">{product.finish.replace(/-/g, ' ')}</span>
+              )}
+              {product.finish && product.packagingUnit && <span>•</span>}
+              {product.packagingUnit && (
+                <span>{product.packagingUnit}</span>
+              )}
+              {(product.finish || product.packagingUnit) && product.priceInfo && <span>•</span>}
+              {product.priceInfo && (
+                <span className="font-medium text-inox-teal">{product.priceInfo}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Score badge (if available) */}
@@ -127,8 +149,8 @@ export function ProductCard({
         )}
       </div>
 
-      {/* Content preview (if available) */}
-      {product.content && (
+      {/* Content preview - only show if no structured metadata available */}
+      {product.content && !product.standard && !product.threadType && (
         <p className="mt-3 text-sm text-slate-600 line-clamp-2">
           {product.content.substring(0, 150)}
           {product.content.length > 150 ? '...' : ''}

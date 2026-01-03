@@ -12,6 +12,17 @@ export interface SearchResult {
     filename: string;
     supplier: string | null;
   };
+  // Enhanced product metadata from vector DB
+  productType?: string;
+  material?: string;
+  threadType?: string;
+  headType?: string;
+  standard?: string;
+  productName?: string;
+  dimensions?: string;
+  finish?: string;
+  priceInfo?: string;
+  packagingUnit?: string;
 }
 
 export interface ChatMessage {
