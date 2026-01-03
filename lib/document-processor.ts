@@ -1,5 +1,32 @@
 import { sql } from '@vercel/postgres';
 
+/**
+ * Detect supplier from filename using known patterns
+ */
+export function detectSupplierFromFilename(filename: string): string | null {
+  const normalizedName = filename.toLowerCase();
+
+  // Known supplier patterns
+  const supplierPatterns: Record<string, RegExp> = {
+    'reyher': /reyher/i,
+    'wurth': /w[uü]rth|wuerth/i,
+    'bossard': /bossard/i,
+    'fabory': /fabory/i,
+    'hilti': /hilti/i,
+    'fischer': /fischer/i,
+    'klimas': /klimas|wkret/i,
+    'fastenal': /fastenal/i,
+  };
+
+  for (const [supplier, pattern] of Object.entries(supplierPatterns)) {
+    if (pattern.test(normalizedName)) {
+      return supplier;
+    }
+  }
+
+  return null;
+}
+
 // Re-export ChunkMetadata interface
 export interface ChunkMetadata {
   documentId: string;

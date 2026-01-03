@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { sql } from '@vercel/postgres';
 import { IncomingForm, Fields, Files } from 'formidable';
 import fs from 'fs';
+import { detectSupplierFromFilename } from '../../lib/document-processor';
 
 // Helper to parse form data
 function parseForm(req: VercelRequest): Promise<{ fields: Fields; files: Files }> {
@@ -102,7 +103,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const file = Array.isArray(uploadedFile) ? uploadedFile[0] : uploadedFile;
       const supplierField = fields.supplier;
-      const supplier = Array.isArray(supplierField) ? supplierField[0] : supplierField;
+      const originalName = file.originalFilename || 'document.pdf';
+
+      // Auto-detect supplier from filename if not provided
+      let supplier = Array.isArray(supplierField) ? supplierField[0] : supplierField;
+      if (!supplier) {
+        supplier = detectSupplierFromFilename(originalName);
+      }
 
       // Validate file type
       if (file.mimetype !== 'application/pdf') {
@@ -117,7 +124,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Read file from temp path
       const fileBuffer = fs.readFileSync(file.filepath);
-      const originalName = file.originalFilename || 'document.pdf';
 
       // Generate unique filename
       const extension = originalName.split('.').pop() || 'pdf';
