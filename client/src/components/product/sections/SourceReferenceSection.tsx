@@ -1,20 +1,13 @@
 import React from 'react';
-import { FileText, ExternalLink, Building2 } from 'lucide-react';
+import { FileText, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { SourceReferenceSectionProps, SupplierCode } from '@/types/product-extended';
+import type { SourceReferenceSectionProps } from '@/types/product-extended';
 import { DataQualityIndicator } from '../atoms/DataQualityIndicator';
-
-const SUPPLIER_INFO: Record<SupplierCode, { name: string; website?: string }> = {
-  REYHER: { name: 'REYHER', website: 'https://www.reyher.de' },
-  KLIMAS: { name: 'Klimas', website: 'https://www.klimas.com' },
-  WUERTH: { name: 'Würth', website: 'https://www.wuerth.com' },
-  BOSSARD: { name: 'Bossard', website: 'https://www.bossard.com' },
-  FASTENAL: { name: 'Fastenal', website: 'https://www.fastenal.com' },
-  OTHER: { name: 'Other' },
-};
+import { SupplierLogo } from '../SupplierLogo';
+import { getSupplierConfig, normalizeSupplierName } from '@/config/suppliers';
 
 export function SourceReferenceSection({
   sourceReference,
@@ -54,16 +47,19 @@ export function SourceReferenceSection({
     );
   }
 
-  const supplierInfo = SUPPLIER_INFO[sourceReference.supplier] || SUPPLIER_INFO.OTHER;
+  const supplierId = normalizeSupplierName(sourceReference.supplier);
+  const supplierConfig = getSupplierConfig(supplierId);
 
   if (compact) {
     return (
       <div className={`flex items-center gap-2 text-sm text-slate-600 ${className}`}>
-        <FileText className="w-4 h-4 text-slate-400" />
-        <span>
-          {supplierInfo.name}
-          {sourceReference.pageNumber > 0 && ` • ${t.page} ${sourceReference.pageNumber}`}
-        </span>
+        <SupplierLogo supplier={supplierId} size="sm" variant="badge" />
+        {sourceReference.pageNumber > 0 && (
+          <span className="flex items-center gap-1 text-slate-500">
+            <FileText className="w-3 h-3" />
+            {t.page} {sourceReference.pageNumber}
+          </span>
+        )}
         {dataQuality !== undefined && (
           <DataQualityIndicator score={dataQuality} size="sm" showLabel={false} />
         )}
@@ -75,15 +71,16 @@ export function SourceReferenceSection({
     <Card className={`border-slate-200 ${className}`}>
       <CardContent className="py-4">
         <div className="flex items-start gap-4">
-          {/* Supplier Icon */}
-          <div className="shrink-0 w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-slate-500" />
+          {/* Supplier Logo */}
+          <div className="shrink-0 w-14 h-14 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center p-2">
+            <SupplierLogo supplier={supplierId} size="lg" variant="logo" />
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-slate-900">{supplierInfo.name}</h3>
+              <h3 className="font-semibold text-slate-900">{supplierConfig.name}</h3>
+              <span className="text-xs text-slate-400">{supplierConfig.countryFlag}</span>
               {dataQuality !== undefined && (
                 <DataQualityIndicator score={dataQuality} size="sm" />
               )}
@@ -140,10 +137,10 @@ export function SourceReferenceSection({
                   </a>
                 </Button>
               )}
-              {supplierInfo.website && (
+              {supplierConfig.websiteUrl && (
                 <Button variant="ghost" size="sm" asChild>
                   <a
-                    href={supplierInfo.website}
+                    href={supplierConfig.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

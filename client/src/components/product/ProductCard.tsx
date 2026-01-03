@@ -3,7 +3,8 @@ import { MessageSquare, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { ProductInfo } from '@/types/product';
-import { extractProductName, getMaterialInfo, formatSupplier } from '@/types/product';
+import { extractProductName, getMaterialInfo } from '@/types/product';
+import { SupplierLogo } from './SupplierLogo';
 
 interface ProductCardProps {
   product: ProductInfo;
@@ -21,7 +22,6 @@ export function ProductCard({
   const { language } = useLanguage();
   const productName = extractProductName(product);
   const materialInfo = getMaterialInfo(product.material);
-  const supplier = formatSupplier(product.supplier);
 
   const handleInquire = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -47,8 +47,10 @@ export function ProductCard({
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-            {supplier && <span>{supplier}</span>}
-            {supplier && product.pageNumber && <span>•</span>}
+            {product.supplier && (
+              <SupplierLogo supplier={product.supplier} size="sm" variant="badge" />
+            )}
+            {product.supplier && product.pageNumber && <span>•</span>}
             {product.pageNumber && (
               <span className="flex items-center gap-1">
                 <FileText className="w-3 h-3" />
@@ -114,15 +116,13 @@ export function ProductCard({
 
       {/* Source info */}
       <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
-        {supplier && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-50 font-medium">
-            {supplier}
-          </span>
+        {product.supplier && (
+          <SupplierLogo supplier={product.supplier} size="sm" variant="badge" />
         )}
         {product.pageNumber && (
           <span className="inline-flex items-center gap-1">
             <FileText className="w-3 h-3" />
-            {language === 'es' ? 'pág.' : 'p.'} {product.pageNumber}
+            {language === 'es' ? 'pag.' : 'p.'} {product.pageNumber}
           </span>
         )}
       </div>

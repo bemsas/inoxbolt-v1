@@ -1,5 +1,6 @@
 export { ProductCard } from './ProductCard';
 export { ProductDetailModal } from './ProductDetailModal';
+export { SupplierLogo, SupplierInfo } from './SupplierLogo';
 // Legacy export for backwards compatibility
 export { InquiryModal } from './InquiryModal';
 
