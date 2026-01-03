@@ -5,28 +5,39 @@
   "framework": null,
   "functions": {
     "api/admin/documents.ts": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "memory": 1024,
       "includeFiles": "lib/**"
     },
     "api/admin/document.ts": {
+      "maxDuration": 300,
+      "memory": 1024,
+      "includeFiles": "lib/**"
+    },
+    "api/admin/process-document.ts": {
+      "maxDuration": 300,
+      "memory": 1024,
+      "includeFiles": "lib/**"
+    },
+    "api/admin/upload-token.ts": {
       "maxDuration": 60,
       "includeFiles": "lib/**"
     },
     "api/compatibility.ts": {
-      "maxDuration": 30,
-      "includeFiles": "lib/**"
-    },
-    "api/search.ts": {
-      "maxDuration": 30,
-      "includeFiles": "lib/**"
-    },
-    "api/chat.ts": {
       "maxDuration": 60,
       "includeFiles": "lib/**"
     },
+    "api/search.ts": {
+      "maxDuration": 60,
+      "includeFiles": "lib/**"
+    },
+    "api/chat.ts": {
+      "maxDuration": 120,
+      "memory": 1024,
+      "includeFiles": "lib/**"
+    },
     "api/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "rewrites": [
