@@ -1,7 +1,31 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
-import { Index } from '@upstash/vector';
-import { detectSupplierFromFilename } from '../../lib/document-processor';
+
+/**
+ * Detect supplier from filename using known patterns
+ */
+function detectSupplier(filename: string): string | null {
+  const normalizedName = filename.toLowerCase();
+
+  const supplierPatterns: Record<string, RegExp> = {
+    'reyher': /reyher/i,
+    'wurth': /w[uü]rth|wuerth/i,
+    'bossard': /bossard/i,
+    'fabory': /fabory/i,
+    'hilti': /hilti/i,
+    'fischer': /fischer/i,
+    'klimas': /klimas|wkret/i,
+    'fastenal': /fastenal/i,
+  };
+
+  for (const [supplier, pattern] of Object.entries(supplierPatterns)) {
+    if (pattern.test(normalizedName)) {
+      return supplier;
+    }
+  }
+
+  return null;
+}
 
 /**
  * API endpoint to detect and update supplier info for existing documents
@@ -36,18 +60,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Initialize vector index for metadata updates
-    const vectorIndex = new Index({
-      url: process.env.UPSTASH_VECTOR_REST_URL!,
-      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
-    });
-
     const updates: Array<{ id: string; filename: string; supplier: string }> = [];
 
     for (const doc of documents) {
       // Try to detect supplier from filename or original_name
-      const detectedSupplier = detectSupplierFromFilename(doc.filename) ||
-                               detectSupplierFromFilename(doc.original_name || '');
+      const detectedSupplier = detectSupplier(doc.filename) ||
+                               detectSupplier(doc.original_name || '');
 
       if (detectedSupplier) {
         // Update document in database
@@ -62,35 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           filename: doc.filename,
           supplier: detectedSupplier,
         });
-
-        // Update vector metadata for all chunks of this document
-        // First, find all chunk IDs for this document
-        try {
-          // Query vectors with this document ID prefix
-          const queryResult = await vectorIndex.query({
-            vector: new Array(1536).fill(0), // Dummy vector for metadata query
-            topK: 1000,
-            filter: `documentId = '${doc.id}'`,
-            includeMetadata: true,
-          });
-
-          // Update each chunk's metadata with the supplier
-          for (const match of queryResult) {
-            if (match.metadata) {
-              await vectorIndex.upsert({
-                id: match.id,
-                vector: new Array(1536).fill(0), // Will be ignored if vector exists
-                metadata: {
-                  ...match.metadata,
-                  supplier: detectedSupplier,
-                },
-              });
-            }
-          }
-        } catch (vectorError) {
-          console.error(`Failed to update vectors for document ${doc.id}:`, vectorError);
-          // Continue with other documents even if vector update fails
-        }
       }
     }
 
