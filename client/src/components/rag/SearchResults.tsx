@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { MessageCircle, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { SearchResult } from '@/contexts/RAGContext';
-import { ProductCard, InquiryModal } from '@/components/product';
+import { ProductCard, ProductDetailModal } from '@/components/product';
 import type { ProductInfo } from '@/types/product';
 
 interface SearchResultsProps {
@@ -132,8 +132,8 @@ export function SearchResults({ results, isSearching, error, onAskAI, onClose }:
         </div>
       </div>
 
-      {/* Inquiry Modal */}
-      <InquiryModal
+      {/* Product Detail Modal */}
+      <ProductDetailModal
         open={isModalOpen}
         onClose={handleCloseModal}
         product={selectedProduct}
