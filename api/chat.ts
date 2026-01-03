@@ -79,8 +79,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
 
     // Dynamic imports to avoid bundling issues
-    const { generateEmbedding, generateChatResponse } = await import('../lib/embeddings.js');
-    const { searchChunks } = await import('../lib/vector/client.js');
+    // Import OpenAI directly instead of from embeddings module
+    const OpenAI = (await import('openai')).default;
+    const { Index } = await import('@upstash/vector');
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const vectorIndex = new Index({
+      url: process.env.UPSTASH_VECTOR_REST_URL!,
+      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+    });
+
+    // Generate embedding inline
+    async function generateEmbedding(text: string): Promise<number[]> {
+      const response = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: text,
+      });
+      return response.data[0].embedding;
+    }
+
+    // Search chunks inline
+    async function searchChunks(embedding: number[], topK: number): Promise<Array<{id: string; score: number; content: string; metadata: any}>> {
+      const results = await vectorIndex.query({
+        vector: embedding,
+        topK,
+        includeMetadata: true,
+      });
+      return results.map((result: any) => ({
+        id: result.id,
+        score: result.score,
+        content: result.metadata?.content || '',
+        metadata: result.metadata,
+      }));
+    }
 
     // Generate embedding for the query to find relevant context
     const queryEmbedding = await generateEmbedding(message);
@@ -113,8 +144,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       excerpt: chunk.content.substring(0, 100) + '...',
     }));
 
-    // Generate streaming response
-    const stream = await generateChatResponse(message, context, historyFormatted, language);
+    // Generate streaming response inline
+    const systemPrompt = language === 'es'
+      ? `Eres un asistente experto en productos de fijación industrial (tornillos, tuercas, pernos) para Inoxbolt.
+
+Usa el siguiente contexto de los catálogos de productos:
+
+<context>
+${context}
+</context>
+
+Directrices:
+- Responde en español
+- Sé preciso y técnico
+- Si la información no está en el contexto, indícalo
+- Menciona códigos de producto cuando sea relevante`
+      : `You are an expert assistant for industrial fasteners (bolts, nuts, screws) at Inoxbolt.
+
+Use the following context from product catalogs:
+
+<context>
+${context}
+</context>
+
+Guidelines:
+- Be precise and technical
+- If the information is not in the context, clearly state that
+- Mention product codes when relevant`;
+
+    const chatMessages: any[] = [
+      { role: 'system', content: systemPrompt },
+      ...historyFormatted.map((h: any) => ({ role: h.role, content: h.content })),
+      { role: 'user', content: message },
+    ];
+
+    const chatResponse = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: chatMessages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
 
     // Set headers for streaming
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -124,19 +194,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Transfer-Encoding', 'chunked');
 
     // Stream the response
-    const reader = stream.getReader();
     let fullResponse = '';
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const text = new TextDecoder().decode(value);
-        fullResponse += text;
-        res.write(text);
+    for await (const chunk of chatResponse) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        fullResponse += content;
+        res.write(content);
       }
-    } finally {
-      reader.releaseLock();
     }
 
     // Save assistant message after stream completes (direct SQL)
