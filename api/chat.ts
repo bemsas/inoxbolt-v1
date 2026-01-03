@@ -181,37 +181,26 @@ Guidelines:
     const chatResponse = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: chatMessages,
-      stream: true,
+      stream: false,
       temperature: 0.7,
       max_tokens: 1000,
     });
 
-    // Set headers for streaming
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Session-Id', token);
-    res.setHeader('X-Sources', JSON.stringify(sources));
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Transfer-Encoding', 'chunked');
+    const fullResponse = chatResponse.choices[0]?.message?.content || '';
 
-    // Stream the response
-    let fullResponse = '';
-
-    for await (const chunk of chatResponse) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        fullResponse += content;
-        res.write(content);
-      }
-    }
-
-    // Save assistant message after stream completes (direct SQL)
+    // Save assistant message (direct SQL)
     const sourcesJson = JSON.stringify(sources);
     await sql`
       INSERT INTO chat_messages (session_id, role, content, sources)
       VALUES (${session.id}, 'assistant', ${fullResponse}, ${sourcesJson}::jsonb)
     `;
 
-    return res.end();
+    // Return JSON response
+    return res.status(200).json({
+      response: fullResponse,
+      sessionId: token,
+      sources,
+    });
   } catch (error) {
     console.error('Chat error:', error);
     return res.status(500).json({ error: 'Chat failed', details: String(error) });
