@@ -6,14 +6,15 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { RAGProvider } from "./contexts/RAGContext";
-import { FloatingChatButton, ChatPanel } from "./components/rag";
 import Home from "./pages/Home";
 import Admin from "./pages/Admin";
+import SearchPage from "./pages/Search";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/search"} component={SearchPage} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
@@ -31,8 +32,6 @@ function App() {
             <TooltipProvider>
               <Toaster />
               <Router />
-              <FloatingChatButton />
-              <ChatPanel />
             </TooltipProvider>
           </RAGProvider>
         </LanguageProvider>

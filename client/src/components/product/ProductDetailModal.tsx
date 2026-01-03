@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   MessageCircle,
   Mail,
@@ -31,11 +31,17 @@ import { useRAG } from '@/contexts/RAGContext';
 import type { ProductInfo } from '@/types/product';
 import {
   extractProductName,
-  getMaterialInfo,
   generateWhatsAppMessage,
   generateEmailSubject,
   generateEmailBody,
 } from '@/types/product';
+import { toExtendedProductInfo } from '@/types/product-extended';
+
+// Import modular sections
+import { ProductHeader } from './sections/ProductHeader';
+import { TechnicalSpecs } from './sections/TechnicalSpecs';
+import { CertificationsSection } from './sections/CertificationsSection';
+import { SourceReferenceSection } from './sections/SourceReferenceSection';
 
 interface ProductDetailModalProps {
   open: boolean;
@@ -68,14 +74,18 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
   const [notes, setNotes] = useState('');
   const [company, setCompany] = useState('');
 
-  if (!product) return null;
+  // Convert ProductInfo to ExtendedProductInfo for section components
+  const extendedProduct = useMemo(() => {
+    if (!product) return null;
+    return toExtendedProductInfo(product);
+  }, [product]);
+
+  if (!product || !extendedProduct) return null;
 
   const productName = extractProductName(product);
-  const materialInfo = getMaterialInfo(product.material);
   const units = UNITS[language] || UNITS.en;
 
   const handleAskAI = () => {
-    // Open chat and send a question about this product
     const question =
       language === 'es'
         ? `Dame más información sobre: ${productName}${product.material ? `, material ${product.material}` : ''}${product.supplier ? ` del catálogo ${product.supplier}` : ''}`
@@ -83,7 +93,6 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
 
     onClose();
     setChatOpen(true);
-    // Small delay to ensure chat is open before sending
     setTimeout(() => {
       sendMessage(question, language);
     }, 100);
@@ -114,11 +123,6 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
 
   const t = {
     productDetails: language === 'es' ? 'Detalles del Producto' : 'Product Details',
-    source: language === 'es' ? 'Fuente' : 'Source',
-    page: language === 'es' ? 'Página' : 'Page',
-    material: language === 'es' ? 'Material' : 'Material',
-    standard: language === 'es' ? 'Norma' : 'Standard',
-    thread: language === 'es' ? 'Rosca' : 'Thread',
     description: language === 'es' ? 'Descripción' : 'Description',
     askAI: language === 'es' ? 'Preguntar al Asistente IA' : 'Ask AI Assistant',
     askAIDesc:
@@ -154,66 +158,67 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
         </DialogHeader>
 
         <ScrollArea className="flex-1 px-6">
-          {/* Product Header */}
-          <div className="space-y-4 pb-4">
-            <h2 className="text-xl font-bold text-slate-900">{productName}</h2>
-
-            {/* Metadata badges */}
-            <div className="flex flex-wrap gap-2">
-              {product.standard && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100">
-                  <span className="text-xs text-slate-500">{t.standard}:</span>
-                  <span className="text-sm font-semibold text-slate-800">
-                    {product.standard}
-                  </span>
-                </div>
-              )}
-              {product.threadType && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-inox-blue/10">
-                  <span className="text-xs text-inox-blue/70">{t.thread}:</span>
-                  <span className="text-sm font-semibold text-inox-blue">
-                    {product.threadType.toUpperCase()}
-                  </span>
-                </div>
-              )}
-              {materialInfo && (
-                <div
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${materialInfo.color}`}
-                >
-                  <span className="text-xs opacity-70">{t.material}:</span>
-                  <span className="text-sm font-semibold">{materialInfo.name}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Source info */}
-            {(product.supplier || product.pageNumber) && (
-              <div className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                <FileText className="w-4 h-4 text-slate-400" />
-                <span>
-                  {t.source}: <strong>{product.supplier || 'Catalogue'}</strong>
-                  {product.pageNumber && (
-                    <>
-                      {' '}
-                      • {t.page} {product.pageNumber}
-                    </>
-                  )}
-                </span>
-              </div>
-            )}
-          </div>
+          {/* Product Header Section */}
+          <ProductHeader
+            name={extendedProduct.name || productName}
+            brand={extendedProduct.brand}
+            category={extendedProduct.category}
+            availability={extendedProduct.pricing?.availability}
+            compact
+            className="pb-4"
+          />
 
           <Separator className="my-4" />
 
+          {/* Technical Specs Section */}
+          <TechnicalSpecs
+            dimensions={extendedProduct.dimensions}
+            material={extendedProduct.material}
+            mechanicalProperties={extendedProduct.mechanicalProperties}
+            primaryStandard={extendedProduct.primaryStandard}
+            headType={extendedProduct.headType}
+            driveType={extendedProduct.driveType}
+            compact
+            expandable
+            className="pb-4"
+          />
+
+          {/* Certifications Section */}
+          {extendedProduct.certifications.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <CertificationsSection
+                certifications={extendedProduct.certifications}
+                primaryStandard={extendedProduct.primaryStandard}
+                showDownloads={false}
+                compact
+                className="pb-4"
+              />
+            </>
+          )}
+
           {/* Full content/description */}
           {product.content && (
-            <div className="pb-4">
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">{t.description}</h3>
-              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
-                {product.content}
-              </p>
-            </div>
+            <>
+              <Separator className="my-4" />
+              <div className="pb-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2">{t.description}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap line-clamp-4">
+                  {product.content}
+                </p>
+              </div>
+            </>
           )}
+
+          {/* Source Reference Section */}
+          <Separator className="my-4" />
+          <SourceReferenceSection
+            sourceReference={extendedProduct.sourceReference}
+            dataQuality={extendedProduct.dataQuality}
+            showCatalogueLink={false}
+            compact
+            className="pb-4"
+          />
 
           <Separator className="my-4" />
 
