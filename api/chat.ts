@@ -168,39 +168,32 @@ INSTRUCTIONS:
       { role: 'user', content: message },
     ];
 
-    // Set headers for streaming BEFORE starting the stream
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('X-Session-Id', token);
-    res.setHeader('X-Sources', JSON.stringify(sources));
-    res.setHeader('Cache-Control', 'no-cache');
-
-    // Create streaming response
-    const stream = await openai.chat.completions.create({
+    // Non-streaming approach for reliability
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: chatMessages,
-      stream: true,
+      stream: false,
       temperature: 0.7,
       max_tokens: 1500,
     });
 
-    // Stream the response
-    let fullResponse = '';
+    const fullResponse = completion.choices[0]?.message?.content || 'No response generated';
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        fullResponse += content;
-        res.write(content);
-      }
-    }
-
-    // Save assistant message after stream completes
+    // Save assistant message
     const sourcesJson = JSON.stringify(sources);
     await sql`
       INSERT INTO chat_messages (session_id, role, content, sources)
       VALUES (${session.id}, 'assistant', ${fullResponse}, ${sourcesJson}::jsonb)
     `;
 
+    // Set headers and stream the response character by character for UI effect
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('X-Session-Id', token);
+    res.setHeader('X-Sources', JSON.stringify(sources));
+    res.setHeader('Cache-Control', 'no-cache');
+
+    // Write full response at once (frontend will handle display)
+    res.write(fullResponse);
     return res.end();
   } catch (error) {
     console.error('Chat error:', error);
