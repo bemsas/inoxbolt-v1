@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { sql } from '@vercel/postgres';
 
 interface SearchRequest {
   query: string;
@@ -47,10 +48,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       threadType,
     });
 
-    // Filter by threshold and format response
-    const filteredResults = results
-      .filter((r) => r.score >= threshold)
-      .map((r) => ({
+    // Filter by threshold
+    const thresholdFiltered = results.filter((r) => r.score >= threshold);
+
+    // Get unique document IDs to look up supplier info
+    const documentIds = [...new Set(thresholdFiltered.map((r) => r.metadata.documentId))];
+
+    // Fetch supplier info from database for documents missing supplier in vector metadata
+    const supplierMap = new Map<string, string | null>();
+    if (documentIds.length > 0) {
+      try {
+        const { rows } = await sql`SELECT id, supplier FROM documents WHERE id = ANY(${documentIds})`;
+        for (const row of rows) {
+          supplierMap.set(row.id, row.supplier);
+        }
+      } catch (dbError) {
+        console.error('Failed to fetch supplier info:', dbError);
+      }
+    }
+
+    // Format response with supplier fallback from database
+    const filteredResults = thresholdFiltered.map((r) => ({
         id: r.id,
         content: r.content,
         snippet: r.content.length > 200 ? r.content.substring(0, 200) + '...' : r.content,
@@ -59,7 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         document: {
           id: r.metadata.documentId,
           filename: r.metadata.documentName,
-          supplier: r.metadata.supplier,
+          // Use vector metadata supplier, fallback to database
+          supplier: r.metadata.supplier || supplierMap.get(r.metadata.documentId) || null,
         },
         // Product metadata for AI compatibility
         productType: r.metadata.productType,
