@@ -51,7 +51,9 @@ describe('Chat API', () => {
       const sourcesHeader = response.headers.get('x-sources');
       expect(sourcesHeader).toBeTruthy();
 
-      const sources = JSON.parse(sourcesHeader!);
+      // Sources are base64 encoded to avoid header character issues
+      const decodedSources = Buffer.from(sourcesHeader!, 'base64').toString('utf-8');
+      const sources = JSON.parse(decodedSources);
       expect(Array.isArray(sources)).toBe(true);
     });
 

@@ -13,7 +13,8 @@ describe('Document Detail API', () => {
     });
 
     it('should return 404 for non-existent document', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
+      // Use a valid UUID v4 format that doesn't exist
+      const fakeId = '00000000-0000-4000-8000-000000000000';
       const response = await fetch(`${BASE_URL}/api/admin/document?id=${fakeId}`);
 
       expect(response.status).toBe(404);
@@ -40,7 +41,8 @@ describe('Document Detail API', () => {
     });
 
     it('should return 404 for non-existent document', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
+      // Use a valid UUID v4 format that doesn't exist
+      const fakeId = '00000000-0000-4000-8000-000000000000';
       const response = await fetch(`${BASE_URL}/api/admin/document?id=${fakeId}`, {
         method: 'DELETE',
       });
@@ -59,7 +61,8 @@ describe('Document Detail API', () => {
     });
 
     it('should return 404 for non-existent document', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
+      // Use a valid UUID v4 format that doesn't exist
+      const fakeId = '00000000-0000-4000-8000-000000000000';
       const response = await fetch(
         `${BASE_URL}/api/admin/document?id=${fakeId}&action=reindex`,
         { method: 'POST' }
