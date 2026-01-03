@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Send, Trash2, Bot, User, FileText, Loader2 } from 'lucide-react';
+import { Send, Trash2, Bot, User, FileText, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -92,38 +92,31 @@ export function ChatPanel() {
       <SheetContent className="w-full sm:max-w-md p-0 flex flex-col h-full">
         {/* Header */}
         <SheetHeader className="px-4 py-3 border-b border-slate-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-inox-teal rounded-full flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <SheetTitle className="text-base font-semibold">
-                  {language === 'es' ? 'Asistente de Productos' : 'Product Assistant'}
-                </SheetTitle>
-                <p className="text-xs text-slate-500">
-                  {language === 'es'
-                    ? 'Pregunte sobre tornillos, tuercas y fijaciones'
-                    : 'Ask about bolts, nuts, and fixings'}
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-inox-teal rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-1">
-              {messages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clear}
-                  className="h-8 w-8"
-                  title={language === 'es' ? 'Limpiar chat' : 'Clear chat'}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" onClick={close} className="h-8 w-8">
-                <X className="w-4 h-4" />
+            <div className="flex-1">
+              <SheetTitle className="text-base font-semibold">
+                {language === 'es' ? 'Asistente de Productos' : 'Product Assistant'}
+              </SheetTitle>
+              <p className="text-xs text-slate-500">
+                {language === 'es'
+                  ? 'Pregunte sobre tornillos, tuercas y fijaciones'
+                  : 'Ask about bolts, nuts, and fixings'}
+              </p>
+            </div>
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clear}
+                className="h-8 w-8"
+                title={language === 'es' ? 'Limpiar chat' : 'Clear chat'}
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
-            </div>
+            )}
           </div>
         </SheetHeader>
 

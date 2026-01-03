@@ -14,6 +14,29 @@ export interface ChunkMetadata {
   standard?: string;
 }
 
+// Extract keywords for hybrid search (RAG 2025 best practice)
+function extractKeywords(content: string): string[] {
+  const keywords: string[] = [];
+
+  // Extract DIN/ISO standards
+  const standards = content.match(/\b(DIN\s*\d+|ISO\s*\d+|ANSI\s*[A-Z]*\d*)\b/gi) || [];
+  keywords.push(...standards.map(s => s.replace(/\s+/g, '').toUpperCase()));
+
+  // Extract thread sizes (M6, M8, M10, M8x30, etc.)
+  const threads = content.match(/\bM\d{1,2}(?:x[\d.]+)?\b/gi) || [];
+  keywords.push(...threads.map(t => t.toUpperCase()));
+
+  // Extract material codes
+  const materials = content.match(/\b(A2|A4|304|316|8\.8|10\.9|12\.9)\b/gi) || [];
+  keywords.push(...materials);
+
+  // Extract product names
+  const products = content.match(/\b(bolt|nut|washer|screw|stud|hex|socket|flange|cap|spring|lock)\b/gi) || [];
+  keywords.push(...products.map(p => p.toLowerCase()));
+
+  return [...new Set(keywords)]; // Remove duplicates
+}
+
 // Extract product metadata from chunk content using AI
 function extractProductMetadata(content: string): Partial<ChunkMetadata> {
   const metadata: Partial<ChunkMetadata> = {};
@@ -122,10 +145,21 @@ export async function processDocumentSync(
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
+    // RAG Best Practices 2025: Use 512 tokens (~2000 chars) with 10-20% overlap
+    // Semantic separators preserve document structure
     const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-      separators: ['\n\n', '\n', '. ', ', ', ' ', ''],
+      chunkSize: 2000,  // ~512 tokens for better context
+      chunkOverlap: 400, // 20% overlap for context continuity
+      separators: [
+        '\n\n\n',       // Major section breaks
+        '\n\n',         // Paragraph breaks
+        '\n',           // Line breaks
+        '. ',           // Sentence boundaries
+        '; ',           // Clause boundaries
+        ', ',           // Minor breaks
+        ' ',            // Words
+        '',             // Characters (fallback)
+      ],
     });
 
     const splitDocs = await textSplitter.createDocuments([cleanedText]);
@@ -167,10 +201,11 @@ export async function processDocumentSync(
       });
       const embeddings = embeddingResponse.data.map((d) => d.embedding);
 
-      // Prepare chunks for vector DB
+      // Prepare chunks for vector DB with enhanced metadata
       const vectorChunks = batchChunks.map((chunk, j) => {
         const chunkId = `${documentId}-${chunk.chunkIndex}`;
         const productMetadata = extractProductMetadata(chunk.content);
+        const keywords = extractKeywords(chunk.content);
 
         return {
           id: chunkId,
@@ -182,6 +217,8 @@ export async function processDocumentSync(
             pageNumber: chunk.pageNumber,
             chunkIndex: chunk.chunkIndex,
             content: chunk.content,
+            // RAG 2025: Keywords for hybrid search
+            keywords: keywords.join(' '),
             ...productMetadata,
           },
         };

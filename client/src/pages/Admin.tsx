@@ -12,6 +12,9 @@ import {
   AlertCircle,
   Clock,
   UploadCloud,
+  Bot,
+  Settings,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,8 +46,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useRAG } from '@/contexts/RAGContext';
 import { toast } from 'sonner';
+
+interface AISettings {
+  temperature: number;
+  maxTokens: number;
+  contextChunks: number;
+  model: string;
+}
+
+const DEFAULT_AI_SETTINGS: AISettings = {
+  temperature: 0.7,
+  maxTokens: 1500,
+  contextChunks: 8,
+  model: 'gpt-4o-mini',
+};
 
 const SUPPLIERS = ['REYHER', 'KLIMAS', 'WÜRTH', 'Other'];
 
@@ -116,12 +136,56 @@ export default function Admin() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedSupplier, setSelectedSupplier] = useState<string>('');
 
+  // AI Settings state
+  const [aiSettings, setAiSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Fetch AI Settings
+  const fetchAISettings = useCallback(async () => {
+    setIsLoadingSettings(true);
+    try {
+      const response = await fetch('/api/admin/ai-settings');
+      if (response.ok) {
+        const settings = await response.json();
+        setAiSettings(settings);
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  }, []);
+
+  // Save AI Settings
+  const saveAISettings = useCallback(async () => {
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch('/api/admin/ai-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aiSettings),
+      });
+      if (response.ok) {
+        toast.success('AI settings saved successfully');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to save settings');
+      }
+    } catch (error) {
+      toast.error('Failed to save AI settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }, [aiSettings]);
+
   useEffect(() => {
     fetchDocuments();
+    fetchAISettings();
     // Refresh every 10 seconds to check processing status
     const interval = setInterval(fetchDocuments, 10000);
     return () => clearInterval(interval);
-  }, [fetchDocuments]);
+  }, [fetchDocuments, fetchAISettings]);
 
   const handleFileUpload = useCallback(
     async (files: FileList | null) => {
@@ -265,6 +329,102 @@ export default function Admin() {
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Settings Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="w-5 h-5" />
+              AI Assistant Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingSettings ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-inox-teal" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Model Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="model">Model</Label>
+                  <Select
+                    value={aiSettings.model}
+                    onValueChange={(value) => setAiSettings({ ...aiSettings, model: value })}
+                  >
+                    <SelectTrigger id="model">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast, Cost-effective)</SelectItem>
+                      <SelectItem value="gpt-4o">GPT-4o (Best quality)</SelectItem>
+                      <SelectItem value="gpt-4-turbo">GPT-4 Turbo (Balanced)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">Choose the AI model for responses</p>
+                </div>
+
+                {/* Temperature */}
+                <div className="space-y-2">
+                  <Label>Temperature: {aiSettings.temperature.toFixed(1)}</Label>
+                  <Slider
+                    value={[aiSettings.temperature]}
+                    onValueChange={([value]) => setAiSettings({ ...aiSettings, temperature: value })}
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Lower = more focused, Higher = more creative
+                  </p>
+                </div>
+
+                {/* Max Tokens */}
+                <div className="space-y-2">
+                  <Label htmlFor="maxTokens">Max Response Tokens</Label>
+                  <Input
+                    id="maxTokens"
+                    type="number"
+                    value={aiSettings.maxTokens}
+                    onChange={(e) => setAiSettings({ ...aiSettings, maxTokens: parseInt(e.target.value) || 1500 })}
+                    min={100}
+                    max={4000}
+                  />
+                  <p className="text-xs text-slate-500">Maximum length of AI responses (100-4000)</p>
+                </div>
+
+                {/* Context Chunks */}
+                <div className="space-y-2">
+                  <Label htmlFor="contextChunks">Context Chunks</Label>
+                  <Input
+                    id="contextChunks"
+                    type="number"
+                    value={aiSettings.contextChunks}
+                    onChange={(e) => setAiSettings({ ...aiSettings, contextChunks: parseInt(e.target.value) || 8 })}
+                    min={1}
+                    max={20}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Number of catalog sections to include (1-20)
+                  </p>
+                </div>
+
+                {/* Save Button */}
+                <div className="md:col-span-2 flex justify-end">
+                  <Button onClick={saveAISettings} disabled={isSavingSettings}>
+                    {isSavingSettings ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Settings
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Upload Section */}
         <Card className="mb-8">
