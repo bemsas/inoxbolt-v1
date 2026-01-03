@@ -4,12 +4,11 @@ import { nanoid } from 'nanoid';
 import { sql } from '@vercel/postgres';
 import { IncomingForm, Fields, Files } from 'formidable';
 import fs from 'fs';
-import { processDocumentSync } from '../../lib/document-processor';
 
 // Helper to parse form data
 function parseForm(req: VercelRequest): Promise<{ fields: Fields; files: Files }> {
   const form = new IncomingForm({
-    maxFileSize: 50 * 1024 * 1024, // 50MB
+    maxFileSize: 100 * 1024 * 1024, // 100MB
     keepExtensions: true,
   });
   return new Promise((resolve, reject) => {
@@ -97,10 +96,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Only PDF files are allowed' });
       }
 
-      // Validate file size (max 50MB)
-      const maxSize = 50 * 1024 * 1024;
+      // Validate file size (max 100MB)
+      const maxSize = 100 * 1024 * 1024;
       if (file.size > maxSize) {
-        return res.status(400).json({ error: 'File size must be less than 50MB' });
+        return res.status(400).json({ error: 'File size must be less than 100MB' });
       }
 
       // Read file from temp path
@@ -132,8 +131,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `;
       const document = docResult.rows[0];
 
-      // Process document synchronously
+      // Process document synchronously (dynamic import to avoid bundling issues)
       try {
+        const { processDocumentSync } = await import('../../lib/document-processor.js');
         const result = await processDocumentSync(
           document.id,
           blob.url,

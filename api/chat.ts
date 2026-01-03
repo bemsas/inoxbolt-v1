@@ -1,13 +1,27 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getOrCreateChatSession, addChatMessage, getChatHistory } from '../lib/db/client';
-import { searchChunks } from '../lib/vector/client';
-import { generateEmbedding, generateChatResponse } from '../lib/embeddings';
+import { sql } from '@vercel/postgres';
 import { nanoid } from 'nanoid';
 
 interface ChatRequest {
   message: string;
   sessionId?: string;
   language?: 'en' | 'es';
+}
+
+interface ChatSession {
+  id: string;
+  session_token: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources: Array<{ chunkId: string; documentName: string; pageNumber: number }> | null;
+  created_at: Date;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -32,19 +46,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Get or create chat session
+    // Get or create chat session (direct SQL)
     const token = sessionId || nanoid();
-    const session = await getOrCreateChatSession(token);
+    let session: ChatSession;
 
-    // Get chat history for context
-    const history = await getChatHistory(session.id, 10);
-    const historyFormatted = history.map((m) => ({
+    const existingSession = await sql<ChatSession>`
+      SELECT * FROM chat_sessions WHERE session_token = ${token}
+    `;
+
+    if (existingSession.rows[0]) {
+      session = existingSession.rows[0];
+    } else {
+      const newSession = await sql<ChatSession>`
+        INSERT INTO chat_sessions (session_token) VALUES (${token}) RETURNING *
+      `;
+      session = newSession.rows[0];
+    }
+
+    // Get chat history for context (direct SQL)
+    const historyResult = await sql<ChatMessage>`
+      SELECT * FROM chat_messages WHERE session_id = ${session.id} ORDER BY created_at DESC LIMIT 10
+    `;
+    const history = historyResult.rows.reverse();
+    const historyFormatted = history.map((m: ChatMessage) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
 
-    // Save user message
-    await addChatMessage(session.id, 'user', message);
+    // Save user message (direct SQL)
+    await sql`
+      INSERT INTO chat_messages (session_id, role, content) VALUES (${session.id}, 'user', ${message})
+    `;
+
+    // Dynamic imports to avoid bundling issues
+    const { generateEmbedding, generateChatResponse } = await import('../lib/embeddings.js');
+    const { searchChunks } = await import('../lib/vector/client.js');
 
     // Generate embedding for the query to find relevant context
     const queryEmbedding = await generateEmbedding(message);
@@ -103,8 +139,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       reader.releaseLock();
     }
 
-    // Save assistant message after stream completes
-    await addChatMessage(session.id, 'assistant', fullResponse, sources);
+    // Save assistant message after stream completes (direct SQL)
+    const sourcesJson = JSON.stringify(sources);
+    await sql`
+      INSERT INTO chat_messages (session_id, role, content, sources)
+      VALUES (${session.id}, 'assistant', ${fullResponse}, ${sourcesJson}::jsonb)
+    `;
 
     return res.end();
   } catch (error) {

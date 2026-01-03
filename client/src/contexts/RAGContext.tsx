@@ -255,20 +255,30 @@ export function RAGProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const uploadDocument = useCallback(async (file: File, supplier?: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (supplier) {
-      formData.append('supplier', supplier);
-    }
+    // Use client-side upload to bypass Vercel's 4.5MB serverless function limit
+    const { upload } = await import('@vercel/blob/client');
 
-    const response = await fetch('/api/admin/documents', {
+    // Upload directly to Vercel Blob from the browser
+    const blob = await upload(file.name, file, {
+      access: 'public',
+      handleUploadUrl: '/api/admin/upload-token',
+    });
+
+    // Now process the document with just the blob URL
+    const response = await fetch('/api/admin/process-document', {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        blobUrl: blob.url,
+        filename: file.name,
+        fileSize: file.size,
+        supplier: supplier || null,
+      }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+      throw new Error(error.error || 'Processing failed');
     }
 
     // Refresh document list

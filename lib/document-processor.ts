@@ -1,14 +1,21 @@
-import { processPDF } from './pdf-processor';
-import { generateEmbedding, generateEmbeddings } from './embeddings';
-import { updateDocumentStatus, createProcessingJob, updateProcessingJob } from './db/client';
-import { upsertChunks, ChunkMetadata } from './vector/client';
-import { nanoid } from 'nanoid';
+import { sql } from '@vercel/postgres';
+
+// Re-export ChunkMetadata interface
+export interface ChunkMetadata {
+  documentId: string;
+  documentName: string;
+  supplier: string | null;
+  pageNumber: number | null;
+  chunkIndex: number;
+  productType?: string;
+  material?: string;
+  threadType?: string;
+  headType?: string;
+  standard?: string;
+}
 
 // Extract product metadata from chunk content using AI
-async function extractProductMetadata(content: string): Promise<Partial<ChunkMetadata>> {
-  // Simple regex-based extraction for common patterns
-  // In production, you could use GPT to extract structured data
-
+function extractProductMetadata(content: string): Partial<ChunkMetadata> {
   const metadata: Partial<ChunkMetadata> = {};
 
   // Detect product type
@@ -96,18 +103,57 @@ export async function processDocumentSync(
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Step 2: Update status to processing
-    await updateDocumentStatus(documentId, 'processing');
+    // Step 2: Update status to processing (direct SQL)
+    await sql`UPDATE documents SET status = 'processing' WHERE id = ${documentId}`;
 
-    // Step 3: Process PDF and extract chunks
-    const processingResult = await processPDF(buffer);
+    // Step 3: Process PDF and extract chunks (dynamic import)
+    // @ts-expect-error - pdf-parse has no type declarations
+    const pdfParse = (await import('pdf-parse')).default;
+    const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
 
-    // Step 4: Create processing job for tracking
-    const job = await createProcessingJob(documentId, processingResult.pageCount);
+    const pdfData = await pdfParse(buffer);
+    const pageCount = pdfData.numpages;
 
-    // Step 5: Generate embeddings and upsert to vector DB in batches
-    const chunks = processingResult.chunks;
-    const batchSize = 50; // Process 50 chunks at a time
+    // Clean and split text
+    const cleanedText = pdfData.text
+      .replace(/\x00/g, '')
+      .replace(/[\r\n]+/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+      separators: ['\n\n', '\n', '. ', ', ', ' ', ''],
+    });
+
+    const splitDocs = await textSplitter.createDocuments([cleanedText]);
+    const chunks = splitDocs.map((doc: { pageContent: string }, index: number) => ({
+      content: doc.pageContent,
+      pageNumber: Math.ceil(((index + 1) / splitDocs.length) * pageCount),
+      chunkIndex: index,
+    }));
+
+    // Step 4: Create processing job (direct SQL)
+    const jobResult = await sql`
+      INSERT INTO processing_jobs (document_id, total_pages, started_at)
+      VALUES (${documentId}, ${pageCount}, NOW())
+      RETURNING id
+    `;
+    const jobId = jobResult.rows[0].id;
+
+    // Step 5: Generate embeddings and upsert to vector DB (dynamic imports)
+    const OpenAI = (await import('openai')).default;
+    const { Index } = await import('@upstash/vector');
+
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const vectorIndex = new Index({
+      url: process.env.UPSTASH_VECTOR_REST_URL!,
+      token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+    });
+
+    const batchSize = 50;
     let totalChunksProcessed = 0;
 
     for (let i = 0; i < chunks.length; i += batchSize) {
@@ -115,65 +161,76 @@ export async function processDocumentSync(
       const batchTexts = batchChunks.map((c) => c.content);
 
       // Generate embeddings for this batch
-      const embeddings = await generateEmbeddings(batchTexts);
+      const embeddingResponse = await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: batchTexts,
+      });
+      const embeddings = embeddingResponse.data.map((d) => d.embedding);
 
       // Prepare chunks for vector DB
-      const vectorChunks = await Promise.all(
-        batchChunks.map(async (chunk, j) => {
-          const chunkId = `${documentId}-${chunk.chunkIndex}`;
-          const productMetadata = await extractProductMetadata(chunk.content);
+      const vectorChunks = batchChunks.map((chunk, j) => {
+        const chunkId = `${documentId}-${chunk.chunkIndex}`;
+        const productMetadata = extractProductMetadata(chunk.content);
 
-          return {
-            id: chunkId,
-            embedding: embeddings[j],
+        return {
+          id: chunkId,
+          vector: embeddings[j],
+          metadata: {
+            documentId,
+            documentName,
+            supplier,
+            pageNumber: chunk.pageNumber,
+            chunkIndex: chunk.chunkIndex,
             content: chunk.content,
-            metadata: {
-              documentId,
-              documentName,
-              supplier,
-              pageNumber: chunk.pageNumber,
-              chunkIndex: chunk.chunkIndex,
-              ...productMetadata,
-            } as ChunkMetadata,
-          };
-        })
-      );
+            ...productMetadata,
+          },
+        };
+      });
 
-      // Upsert to Upstash Vector
-      await upsertChunks(vectorChunks);
+      // Upsert to Upstash Vector in smaller batches
+      for (let k = 0; k < vectorChunks.length; k += 100) {
+        const batch = vectorChunks.slice(k, k + 100);
+        await vectorIndex.upsert(batch);
+      }
 
       totalChunksProcessed += batchChunks.length;
 
       // Update job progress
-      await updateProcessingJob(job.id, {
-        current_page: Math.min(i + batchSize, chunks.length),
-        chunks_created: totalChunksProcessed,
-      });
+      await sql`
+        UPDATE processing_jobs
+        SET current_page = ${Math.min(i + batchSize, chunks.length)}, chunks_created = ${totalChunksProcessed}
+        WHERE id = ${jobId}
+      `;
     }
 
     // Step 6: Mark document as completed
-    await updateDocumentStatus(documentId, 'completed', {
-      page_count: processingResult.pageCount,
-      processed_at: new Date(),
-    });
+    const processedAt = new Date().toISOString();
+    await sql`
+      UPDATE documents
+      SET status = 'completed', page_count = ${pageCount}, processed_at = ${processedAt}
+      WHERE id = ${documentId}
+    `;
 
-    await updateProcessingJob(job.id, {
-      status: 'completed',
-      chunks_created: chunks.length,
-    });
+    await sql`
+      UPDATE processing_jobs
+      SET status = 'completed', completed_at = NOW(), chunks_created = ${chunks.length}
+      WHERE id = ${jobId}
+    `;
 
     const processingTimeMs = Date.now() - startTime;
 
     return {
-      pageCount: processingResult.pageCount,
+      pageCount,
       chunksCreated: chunks.length,
       processingTimeMs,
     };
   } catch (error) {
     // Mark document as failed
-    await updateDocumentStatus(documentId, 'failed', {
-      error_message: error instanceof Error ? error.message : String(error),
-    });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    await sql`
+      UPDATE documents SET status = 'failed', error_message = ${errorMessage}
+      WHERE id = ${documentId}
+    `;
     throw error;
   }
 }

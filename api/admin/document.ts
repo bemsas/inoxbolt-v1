@@ -1,8 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { del } from '@vercel/blob';
-import { getDocument, deleteDocument, updateDocumentStatus } from '../../lib/db/client';
-import { processDocumentSync } from '../../lib/document-processor';
-import { deleteDocumentChunks } from '../../lib/vector/client';
+import { sql } from '@vercel/postgres';
+
+// Document type
+interface Document {
+  id: string;
+  filename: string;
+  original_name: string;
+  supplier: string | null;
+  file_size_bytes: number | null;
+  page_count: number | null;
+  status: string;
+  error_message: string | null;
+  blob_url: string | null;
+  created_at: Date;
+  updated_at: Date;
+  processed_at: Date | null;
+}
 
 // UUID validation helper
 function isValidUUID(str: string): boolean {
@@ -33,7 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // GET - Get document details
   if (req.method === 'GET') {
     try {
-      const document = await getDocument(id);
+      const result = await sql<Document>`SELECT * FROM documents WHERE id = ${id}`;
+      const document = result.rows[0];
 
       if (!document) {
         return res.status(404).json({ error: 'Document not found' });
@@ -49,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // DELETE - Delete document
   if (req.method === 'DELETE') {
     try {
-      const document = await getDocument(id);
+      const result = await sql<Document>`SELECT * FROM documents WHERE id = ${id}`;
+      const document = result.rows[0];
 
       if (!document) {
         return res.status(404).json({ error: 'Document not found' });
@@ -61,11 +77,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Delete chunks from vector store (dynamic import)
-      
-      await deleteDocumentChunks(id);
+      try {
+        const { deleteDocumentChunks } = await import('../../lib/vector/client.js');
+        await deleteDocumentChunks(id);
+      } catch (e) {
+        console.log('Vector chunk deletion skipped:', e);
+      }
 
       // Delete from database (cascades to chunks)
-      await deleteDocument(id);
+      await sql`DELETE FROM documents WHERE id = ${id}`;
 
       return res.status(200).json({ message: 'Document deleted successfully' });
     } catch (error) {
@@ -77,7 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // POST - Reindex document (when action=reindex)
   if (req.method === 'POST' && action === 'reindex') {
     try {
-      const document = await getDocument(id);
+      const result = await sql<Document>`SELECT * FROM documents WHERE id = ${id}`;
+      const document = result.rows[0];
 
       if (!document) {
         return res.status(404).json({ error: 'Document not found' });
@@ -88,15 +109,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Reset document status
-      await updateDocumentStatus(id, 'processing');
+      await sql`UPDATE documents SET status = 'processing' WHERE id = ${id}`;
 
       // Delete existing chunks from vector store (dynamic import)
-      
-      await deleteDocumentChunks(id);
+      try {
+        const { deleteDocumentChunks } = await import('../../lib/vector/client.js');
+        await deleteDocumentChunks(id);
+      } catch (e) {
+        console.log('Vector chunk deletion skipped:', e);
+      }
 
-      // Process document synchronously (dynamic import, throws on error)
-      
-      const result = await processDocumentSync(
+      // Process document synchronously (dynamic import)
+      const { processDocumentSync } = await import('../../lib/document-processor.js');
+      const processingResult = await processDocumentSync(
         id,
         document.blob_url,
         document.filename,
@@ -105,9 +130,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.status(200).json({
         message: 'Document reindexed successfully',
-        chunksCreated: result.chunksCreated,
-        pageCount: result.pageCount,
-        processingTimeMs: result.processingTimeMs
+        chunksCreated: processingResult.chunksCreated,
+        pageCount: processingResult.pageCount,
+        processingTimeMs: processingResult.processingTimeMs
       });
     } catch (error) {
       console.error('Reindex error:', error);
