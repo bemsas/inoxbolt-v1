@@ -178,9 +178,23 @@ export function RAGProvider({ children }: { children: ReactNode }) {
         setChatSessionId(newSessionId);
       }
 
-      // Get sources from header
+      // Get sources from header (base64 encoded to avoid header character issues)
       const sourcesHeader = response.headers.get('X-Sources');
-      const sources = sourcesHeader ? JSON.parse(sourcesHeader) : [];
+      let sources: Array<{ chunkId: string; documentName: string; pageNumber: number; excerpt: string }> = [];
+      if (sourcesHeader) {
+        try {
+          // Decode base64 and parse JSON
+          const decoded = atob(sourcesHeader);
+          sources = JSON.parse(decoded);
+        } catch (e) {
+          // Fallback: try parsing as plain JSON (backwards compatibility)
+          try {
+            sources = JSON.parse(sourcesHeader);
+          } catch {
+            console.error('Failed to parse sources header');
+          }
+        }
+      }
 
       // Stream the response
       const reader = response.body?.getReader();

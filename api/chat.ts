@@ -186,10 +186,12 @@ INSTRUCTIONS:
       VALUES (${session.id}, 'assistant', ${fullResponse}, ${sourcesJson}::jsonb)
     `;
 
-    // Set headers and stream the response character by character for UI effect
+    // Set headers - encode sources as base64 to avoid header character issues
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('X-Session-Id', token);
-    res.setHeader('X-Sources', JSON.stringify(sources));
+    // Base64 encode the sources to avoid invalid header characters
+    const sourcesBase64 = Buffer.from(JSON.stringify(sources)).toString('base64');
+    res.setHeader('X-Sources', sourcesBase64);
     res.setHeader('Cache-Control', 'no-cache');
 
     // Write full response at once (frontend will handle display)
