@@ -52,13 +52,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const documents = docsResult.rows;
 
       const totalDocs = await sql`SELECT COUNT(*) as count FROM documents`;
-      const totalChunks = await sql`SELECT COUNT(*) as count FROM chunks`;
       const processing = await sql`SELECT COUNT(*) as count FROM documents WHERE status = 'processing'`;
       const completed = await sql`SELECT COUNT(*) as count FROM documents WHERE status = 'completed'`;
 
+      // Get vector count from Upstash
+      let totalChunks = 0;
+      try {
+        const { Index } = await import('@upstash/vector');
+        const vectorIndex = new Index({
+          url: process.env.UPSTASH_VECTOR_REST_URL!,
+          token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+        });
+        const vectorInfo = await vectorIndex.info();
+        totalChunks = vectorInfo.vectorCount;
+      } catch (vectorError) {
+        console.error('Failed to get vector count:', vectorError);
+      }
+
       const stats = {
         totalDocuments: Number(totalDocs.rows[0].count),
-        totalChunks: Number(totalChunks.rows[0].count),
+        totalChunks,
         processingCount: Number(processing.rows[0].count),
         completedCount: Number(completed.rows[0].count),
       };
