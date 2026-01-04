@@ -48,6 +48,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
+      // First check if documents table exists
+      const tableCheck = await sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'documents'
+        ) as exists
+      `;
+
+      if (!tableCheck.rows[0].exists) {
+        // Create documents table if it doesn't exist
+        await sql`
+          CREATE TABLE IF NOT EXISTS documents (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            filename VARCHAR(255) NOT NULL,
+            original_name VARCHAR(255) NOT NULL,
+            supplier VARCHAR(100),
+            file_size_bytes INTEGER,
+            page_count INTEGER,
+            status VARCHAR(50) DEFAULT 'pending',
+            error_message TEXT,
+            blob_url TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            processed_at TIMESTAMP WITH TIME ZONE
+          )
+        `;
+        console.log('Created documents table');
+      }
+
       // Direct SQL queries to avoid any import issues
       const docsResult = await sql<Document>`SELECT * FROM documents ORDER BY created_at DESC`;
       const documents = docsResult.rows;
@@ -86,7 +115,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({
         error: 'Failed to list documents',
         details: String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        hint: 'Check if POSTGRES_URL environment variable is set correctly'
       });
     }
   }
