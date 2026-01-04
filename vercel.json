@@ -19,6 +19,16 @@
       "memory": 1024,
       "includeFiles": "lib/**"
     },
+    "api/admin/reindex-all.ts": {
+      "maxDuration": 300,
+      "memory": 1024,
+      "includeFiles": "lib/**"
+    },
+    "api/admin/reindex-document.ts": {
+      "maxDuration": 300,
+      "memory": 1024,
+      "includeFiles": "lib/**"
+    },
     "api/admin/upload-token.ts": {
       "maxDuration": 60,
       "includeFiles": "lib/**"
