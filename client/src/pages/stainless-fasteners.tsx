@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Link } from 'wouter';
 import Navbar from '@/components/Navbar';
@@ -29,7 +29,34 @@ import {
   Thermometer,
   Droplets,
   Hexagon,
+  Wrench,
+  Settings,
+  CircleDot,
+  Ruler,
+  Anchor,
+  Link as LinkIcon,
 } from 'lucide-react';
+
+// Import shared components
+import {
+  Breadcrumbs,
+  MetaTags,
+  ProductJsonLd,
+  StickyCategoryNav,
+  EnhancedProductCard,
+  ProductCardSkeleton,
+  QuickViewModal,
+  QuickQuoteModal,
+  FloatingQuoteButton,
+  ShareButton,
+  CollapsibleSpecs,
+  RelatedProducts,
+  CrossLinkBanner,
+  MobileProductCarousel,
+  useActiveSectionTracker,
+  type ProductCardData,
+  type CategoryNavItem,
+} from '@/components/product-family/ProductFamilyComponents';
 
 // Translations for stainless fasteners page
 const translations = {
@@ -37,6 +64,10 @@ const translations = {
   'stainless.meta.title': {
     en: 'Stainless Steel Fasteners | InoxBolt - A2/A4 Grade Bolts & Screws',
     es: 'Tornilleria de Acero Inoxidable | InoxBolt - Pernos y Tornillos A2/A4',
+  },
+  'stainless.meta.description': {
+    en: 'Premium A2 & A4 stainless steel fasteners for marine, food processing, and architectural applications. DIN/ISO certified. Fast delivery across Spain.',
+    es: 'Tornilleria de acero inoxidable A2 y A4 premium para aplicaciones marinas, alimentarias y arquitectonicas. Certificacion DIN/ISO. Entrega rapida en toda Espana.',
   },
   'stainless.hero.title': {
     en: 'Stainless Steel Fasteners',
@@ -194,10 +225,35 @@ const translations = {
     en: 'Request sent! We will contact you shortly.',
     es: 'Solicitud enviada! Le contactaremos pronto.',
   },
+
+  // Categories
+  'stainless.cat.bolts': { en: 'Bolts', es: 'Tornillos' },
+  'stainless.cat.screws': { en: 'Screws', es: 'Tornillos' },
+  'stainless.cat.nuts': { en: 'Nuts', es: 'Tuercas' },
+  'stainless.cat.washers': { en: 'Washers', es: 'Arandelas' },
+  'stainless.cat.rods': { en: 'Threaded Rods', es: 'Varillas' },
+  'stainless.cat.all': { en: 'All Products', es: 'Todos' },
+
+  // Related
+  'stainless.related.title': { en: 'Complete Your Assembly', es: 'Complete Su Montaje' },
+  'stainless.related.structural': {
+    en: 'Need high-strength connections? Explore our structural bolt range.',
+    es: 'Necesita conexiones de alta resistencia? Explore nuestra gama de tornillos estructurales.',
+  },
 };
 
-// Product data
-const products = [
+// Category navigation items
+const categories: CategoryNavItem[] = [
+  { id: 'all', label: { en: 'All Products', es: 'Todos' }, icon: <Hexagon className="w-4 h-4" /> },
+  { id: 'bolts', label: { en: 'Bolts', es: 'Tornillos' }, icon: <Wrench className="w-4 h-4" /> },
+  { id: 'screws', label: { en: 'Screws', es: 'Tornillos Allen' }, icon: <Settings className="w-4 h-4" /> },
+  { id: 'nuts', label: { en: 'Nuts', es: 'Tuercas' }, icon: <CircleDot className="w-4 h-4" /> },
+  { id: 'washers', label: { en: 'Washers', es: 'Arandelas' }, icon: <CircleDot className="w-4 h-4" /> },
+  { id: 'rods', label: { en: 'Threaded Rods', es: 'Varillas' }, icon: <Ruler className="w-4 h-4" /> },
+];
+
+// Product data with enhanced structure
+const products: ProductCardData[] = [
   {
     id: 'din933',
     standard: 'DIN 933 / ISO 4017',
@@ -209,6 +265,10 @@ const products = [
     materials: ['A2-70', 'A4-70', 'A4-80'],
     image: '/images/placeholders/bolt.svg',
     searchQuery: 'DIN 933 stainless',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M3-M30' },
+      { label: { en: 'Length', es: 'Longitud' }, value: '6-200mm' },
+    ],
   },
   {
     id: 'din912',
@@ -221,6 +281,10 @@ const products = [
     materials: ['A2-70', 'A4-70', 'A4-80'],
     image: '/images/placeholders/screw.svg',
     searchQuery: 'DIN 912 stainless',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M2-M24' },
+      { label: { en: 'Length', es: 'Longitud' }, value: '3-200mm' },
+    ],
   },
   {
     id: 'din934',
@@ -233,6 +297,10 @@ const products = [
     materials: ['A2-70', 'A4-70', 'A4-80'],
     image: '/images/placeholders/nut.svg',
     searchQuery: 'DIN 934 stainless',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M2-M64' },
+      { label: { en: 'Height', es: 'Altura' }, value: '1.6-51mm' },
+    ],
   },
   {
     id: 'din125',
@@ -245,6 +313,10 @@ const products = [
     materials: ['A2', 'A4'],
     image: '/images/placeholders/washer.svg',
     searchQuery: 'DIN 125 stainless',
+    specs: [
+      { label: { en: 'Inner Diameter', es: 'Diametro Int.' }, value: '3.2-39mm' },
+      { label: { en: 'Thickness', es: 'Espesor' }, value: '0.5-4mm' },
+    ],
   },
   {
     id: 'din127',
@@ -257,6 +329,10 @@ const products = [
     materials: ['A2', 'A4'],
     image: '/images/placeholders/washer.svg',
     searchQuery: 'DIN 127 stainless',
+    specs: [
+      { label: { en: 'Size Range', es: 'Rango' }, value: 'M3-M30' },
+      { label: { en: 'Type', es: 'Tipo' }, value: 'Split' },
+    ],
   },
   {
     id: 'din7991',
@@ -269,6 +345,10 @@ const products = [
     materials: ['A2-70', 'A4-70', 'A4-80'],
     image: '/images/placeholders/screw.svg',
     searchQuery: 'DIN 7991 stainless',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M3-M20' },
+      { label: { en: 'Head Angle', es: 'Angulo' }, value: '90 deg' },
+    ],
   },
   {
     id: 'din975',
@@ -281,6 +361,10 @@ const products = [
     materials: ['A2-70', 'A4-70', 'A4-80'],
     image: '/images/placeholders/threaded_rod.svg',
     searchQuery: 'DIN 975 stainless',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M6-M30' },
+      { label: { en: 'Length', es: 'Longitud' }, value: '1m, 2m, 3m' },
+    ],
   },
   {
     id: 'din7985',
@@ -293,8 +377,21 @@ const products = [
     materials: ['A2-70', 'A4-70'],
     image: '/images/placeholders/screw.svg',
     searchQuery: 'DIN 7985 stainless',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M2-M10' },
+      { label: { en: 'Drive', es: 'Ranura' }, value: 'Phillips' },
+    ],
   },
 ];
+
+// Map products to categories
+const productCategories: Record<string, string[]> = {
+  bolts: ['din933'],
+  screws: ['din912', 'din7991', 'din7985'],
+  nuts: ['din934'],
+  washers: ['din125', 'din127'],
+  rods: ['din975'],
+};
 
 // Technical comparison data
 const technicalComparison = [
@@ -340,6 +437,34 @@ const technicalComparison = [
   },
 ];
 
+// Related products for cross-linking
+const relatedProducts = [
+  {
+    name: { en: 'DIN 934 Hex Nuts', es: 'Tuercas Hexagonales DIN 934' },
+    href: '/search?q=DIN934+stainless',
+    icon: <CircleDot className="w-6 h-6" />,
+    badge: 'A2/A4',
+  },
+  {
+    name: { en: 'DIN 125 Flat Washers', es: 'Arandelas Planas DIN 125' },
+    href: '/search?q=DIN125+stainless',
+    icon: <CircleDot className="w-6 h-6" />,
+    badge: 'A2/A4',
+  },
+  {
+    name: { en: 'DIN 975 Threaded Rods', es: 'Varillas Roscadas DIN 975' },
+    href: '/search?q=DIN975+stainless',
+    icon: <Ruler className="w-6 h-6" />,
+    badge: '1m-3m',
+  },
+  {
+    name: { en: 'Spring Lock Washers', es: 'Arandelas Grower' },
+    href: '/search?q=DIN127+stainless',
+    icon: <Anchor className="w-6 h-6" />,
+    badge: 'DIN 127',
+  },
+];
+
 function useTranslation() {
   const { language } = useLanguage();
   return (key: string): string => {
@@ -352,6 +477,8 @@ function useTranslation() {
 export default function StainlessFastenersPage() {
   const { language } = useLanguage();
   const t = useTranslation();
+
+  // State
   const [quoteForm, setQuoteForm] = useState({
     email: '',
     company: '',
@@ -359,28 +486,85 @@ export default function StainlessFastenersPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [quickViewProduct, setQuickViewProduct] = useState<ProductCardData | null>(null);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [quoteProducts, setQuoteProducts] = useState<ProductCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Section refs for tracking
+  const sectionIds = ['products', 'technical', 'logistics', 'quote-form'];
+  const activeSection = useActiveSectionTracker(sectionIds);
+
+  // Filter products by category
+  const filteredProducts = activeCategory === 'all'
+    ? products
+    : products.filter((p) => productCategories[activeCategory]?.includes(p.id));
+
+  // Scroll to section
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 150;
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: elementPosition - offset,
+        behavior: 'smooth',
+      });
+    }
+    setActiveCategory(id);
+  };
+
+  // Handle adding product to quote
+  const handleAddToQuote = (product: ProductCardData) => {
+    if (!quoteProducts.find((p) => p.id === product.id)) {
+      setQuoteProducts([...quoteProducts, product]);
+    }
+    setQuoteModalOpen(true);
+  };
+
+  // Handle quote form submit
   const handleQuoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
-
     setIsSubmitting(false);
     setSubmitSuccess(true);
-
-    // Reset form after delay
     setTimeout(() => {
       setSubmitSuccess(false);
       setQuoteForm({ email: '', company: '', requirements: '' });
     }, 3000);
   };
 
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : 'https://inoxbolt.es/stainless-fasteners';
+
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans text-slate-900">
-      {/* SEO Meta - would be handled by Next.js Head or similar */}
-      <title>{t('stainless.meta.title')}</title>
+      {/* SEO Meta Tags */}
+      <MetaTags
+        title={t('stainless.meta.title')}
+        description={t('stainless.meta.description')}
+        image="/images/og/stainless-fasteners.jpg"
+        url={pageUrl}
+      />
+
+      {/* JSON-LD Structured Data */}
+      <ProductJsonLd
+        products={products.map((p) => ({
+          name: p.name[language as 'en' | 'es'],
+          description: p.description[language as 'en' | 'es'],
+          image: p.image,
+          brand: 'InoxBolt',
+          category: 'Stainless Steel Fasteners',
+          offers: {
+            availability: 'https://schema.org/InStock',
+            priceCurrency: 'EUR',
+          },
+        }))}
+        pageTitle={t('stainless.meta.title')}
+        pageDescription={t('stainless.meta.description')}
+        pageUrl={pageUrl}
+      />
 
       <Navbar />
 
@@ -392,8 +576,7 @@ export default function StainlessFastenersPage() {
             <div
               className="absolute inset-0"
               style={{
-                backgroundImage:
-                  'url("/images/pattern-hex.png")',
+                backgroundImage: 'url("/images/pattern-hex.png")',
                 backgroundSize: '200px',
               }}
             />
@@ -402,15 +585,12 @@ export default function StainlessFastenersPage() {
           <div className="container relative z-10 py-20 lg:py-28">
             <div className="max-w-3xl">
               {/* Breadcrumb */}
-              <nav className="flex items-center gap-2 text-sm text-slate-400 mb-8">
-                <Link href="/" className="hover:text-white transition-colors">
-                  {language === 'es' ? 'Inicio' : 'Home'}
-                </Link>
-                <ChevronRight className="w-4 h-4" />
-                <span className="text-inox-teal">
-                  {t('stainless.hero.title')}
-                </span>
-              </nav>
+              <Breadcrumbs
+                items={[
+                  { label: language === 'es' ? 'Productos' : 'Products', href: '/search' },
+                  { label: t('stainless.hero.title') },
+                ]}
+              />
 
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-inox-teal/20 border border-inox-teal/30 text-inox-teal text-sm font-medium mb-6">
                 <Shield className="w-4 h-4" />
@@ -441,9 +621,25 @@ export default function StainlessFastenersPage() {
                   <Hexagon className="w-5 h-5" />
                 </Link>
               </div>
+
+              {/* Share button */}
+              <div className="mt-8">
+                <ShareButton
+                  title={t('stainless.meta.title')}
+                  url={pageUrl}
+                  description={t('stainless.meta.description')}
+                />
+              </div>
             </div>
           </div>
         </section>
+
+        {/* Sticky Category Navigation */}
+        <StickyCategoryNav
+          categories={categories}
+          activeCategory={activeCategory}
+          onCategoryClick={scrollToSection}
+        />
 
         {/* Introduction Section */}
         <section className="py-16 lg:py-24 bg-white">
@@ -501,7 +697,7 @@ export default function StainlessFastenersPage() {
         </section>
 
         {/* Products Grid Section */}
-        <section className="py-16 lg:py-24 bg-slate-50">
+        <section id="products" className="py-16 lg:py-24 bg-slate-50">
           <div className="container">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -510,67 +706,25 @@ export default function StainlessFastenersPage() {
               <div className="w-20 h-1.5 bg-inox-teal mx-auto rounded-full" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-inox-teal/30 transition-all duration-300"
-                >
-                  {/* Product Image */}
-                  <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.name[language as 'en' | 'es']}
-                      className="w-24 h-24 object-contain opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+            {/* Mobile Carousel */}
+            <MobileProductCarousel
+              products={filteredProducts}
+              onQuickView={setQuickViewProduct}
+              onAddToQuote={handleAddToQuote}
+            />
+
+            {/* Desktop Grid */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {isLoading
+                ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
+                : filteredProducts.map((product) => (
+                    <EnhancedProductCard
+                      key={product.id}
+                      product={product}
+                      onQuickView={setQuickViewProduct}
+                      onAddToQuote={handleAddToQuote}
                     />
-                    <div className="absolute top-3 left-3">
-                      <Badge
-                        variant="secondary"
-                        className="bg-slate-900 text-white text-xs"
-                      >
-                        {product.standard}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Product Info */}
-                  <div className="p-5">
-                    <h3 className="font-bold text-lg text-slate-900 mb-2 group-hover:text-inox-blue transition-colors">
-                      {product.name[language as 'en' | 'es']}
-                    </h3>
-                    <p className="text-sm text-slate-500 mb-4 line-clamp-2">
-                      {product.description[language as 'en' | 'es']}
-                    </p>
-
-                    {/* Materials */}
-                    <div className="mb-4">
-                      <span className="text-xs text-slate-400 block mb-2">
-                        {t('stainless.products.materials')}
-                      </span>
-                      <div className="flex flex-wrap gap-1">
-                        {product.materials.map((material) => (
-                          <Badge
-                            key={material}
-                            variant="outline"
-                            className="text-xs bg-inox-teal/5 text-inox-teal border-inox-teal/20"
-                          >
-                            {material}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action */}
-                    <Link
-                      href={`/search?q=${encodeURIComponent(product.searchQuery)}`}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-inox-teal hover:text-inox-blue transition-colors group/link"
-                    >
-                      {t('stainless.products.explore')}
-                      <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                  ))}
             </div>
 
             {/* View All Button */}
@@ -587,7 +741,7 @@ export default function StainlessFastenersPage() {
         </section>
 
         {/* Technical Specifications Section */}
-        <section className="py-16 lg:py-24 bg-white">
+        <section id="technical" className="py-16 lg:py-24 bg-white">
           <div className="container">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -597,8 +751,8 @@ export default function StainlessFastenersPage() {
             </div>
 
             <div className="max-w-4xl mx-auto">
-              {/* Comparison Table */}
-              <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden mb-12">
+              {/* Desktop Table */}
+              <div className="hidden md:block bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden mb-12">
                 <div className="px-6 py-4 bg-slate-100 border-b border-slate-200">
                   <h3 className="font-bold text-lg text-slate-900">
                     {t('stainless.tech.comparison')}
@@ -648,6 +802,41 @@ export default function StainlessFastenersPage() {
                 </Table>
               </div>
 
+              {/* Mobile Collapsible */}
+              <div className="md:hidden space-y-4 mb-12">
+                <CollapsibleSpecs title={t('stainless.tech.comparison')} defaultOpen>
+                  <div className="space-y-3">
+                    {technicalComparison.map((row, index) => (
+                      <div key={index} className="bg-white rounded-lg p-4 border border-slate-200">
+                        <div className="font-semibold text-slate-900 mb-2">
+                          {typeof row.property === 'string'
+                            ? row.property
+                            : row.property[language as 'en' | 'es']}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="bg-inox-teal/10 rounded-lg p-2">
+                            <span className="text-xs text-slate-500 block">A2 (304)</span>
+                            <span className="font-medium text-slate-900">
+                              {typeof row.a2 === 'string'
+                                ? row.a2
+                                : row.a2[language as 'en' | 'es']}
+                            </span>
+                          </div>
+                          <div className="bg-inox-blue/10 rounded-lg p-2">
+                            <span className="text-xs text-slate-500 block">A4 (316)</span>
+                            <span className="font-medium text-slate-900">
+                              {typeof row.a4 === 'string'
+                                ? row.a4
+                                : row.a4[language as 'en' | 'es']}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleSpecs>
+              </div>
+
               {/* Strength Grades Info */}
               <div className="bg-gradient-to-r from-inox-teal/10 to-inox-blue/10 rounded-2xl p-8 border border-inox-teal/20">
                 <div className="flex items-start gap-4">
@@ -680,7 +869,7 @@ export default function StainlessFastenersPage() {
         </section>
 
         {/* Logistics Section */}
-        <section className="py-16 lg:py-24 bg-slate-50">
+        <section id="logistics" className="py-16 lg:py-24 bg-slate-50">
           <div className="container">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -731,6 +920,30 @@ export default function StainlessFastenersPage() {
             </div>
           </div>
         </section>
+
+        {/* Related Products */}
+        <RelatedProducts
+          title={t('stainless.related.title')}
+          products={relatedProducts}
+        />
+
+        {/* Cross-Link to Structural Bolts */}
+        <CrossLinkBanner
+          title={{
+            en: 'Looking for Structural Bolts?',
+            es: 'Busca Tornillos Estructurales?',
+          }}
+          description={{
+            en: 'High-strength 8.8, 10.9, and 12.9 grade fasteners for construction and heavy industry.',
+            es: 'Tornilleria de alta resistencia clases 8.8, 10.9 y 12.9 para construccion e industria pesada.',
+          }}
+          href="/structural-bolts"
+          ctaText={{
+            en: 'Explore Structural Bolts',
+            es: 'Ver Tornillos Estructurales',
+          }}
+          icon={<Wrench className="w-8 h-8" />}
+        />
 
         {/* Inline Quote Form Section */}
         <section
@@ -828,6 +1041,25 @@ export default function StainlessFastenersPage() {
       </main>
 
       <Footer />
+
+      {/* Floating Get Quote Button (Mobile) */}
+      <FloatingQuoteButton onClick={() => setQuoteModalOpen(true)} />
+
+      {/* Quick View Modal */}
+      <QuickViewModal
+        open={!!quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+        product={quickViewProduct}
+        onAddToQuote={handleAddToQuote}
+      />
+
+      {/* Quick Quote Modal */}
+      <QuickQuoteModal
+        open={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        products={quoteProducts}
+        category={language === 'es' ? 'Acero Inoxidable' : 'Stainless Steel'}
+      />
     </div>
   );
 }

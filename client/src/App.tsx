@@ -12,6 +12,7 @@ import SearchPage from "./pages/Search";
 import StructuralBoltsPage from "./pages/structural-bolts";
 import StainlessFastenersPage from "./pages/stainless-fasteners";
 import QuotePage from "./pages/Quote";
+import MobileBottomNav from "./components/MobileBottomNav";
 
 function Router() {
   return (
@@ -38,6 +39,7 @@ function App() {
             <TooltipProvider>
               <Toaster />
               <Router />
+              <MobileBottomNav />
             </TooltipProvider>
           </RAGProvider>
         </LanguageProvider>

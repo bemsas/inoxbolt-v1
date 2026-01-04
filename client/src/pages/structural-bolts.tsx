@@ -31,10 +31,48 @@ import {
   Send,
   Award,
   Gauge,
+  Settings,
+  CircleDot,
+  Ruler,
+  Anchor,
+  Droplets,
+  Eye,
+  Plus,
 } from 'lucide-react';
+
+// Import shared components
+import {
+  Breadcrumbs,
+  MetaTags,
+  ProductJsonLd,
+  StickyCategoryNav,
+  EnhancedProductCard,
+  ProductCardSkeleton,
+  QuickViewModal,
+  QuickQuoteModal,
+  FloatingQuoteButton,
+  ShareButton,
+  CollapsibleSpecs,
+  RelatedProducts,
+  CrossLinkBanner,
+  MobileProductCarousel,
+  useActiveSectionTracker,
+  type ProductCardData,
+  type CategoryNavItem,
+} from '@/components/product-family/ProductFamilyComponents';
 
 // Translations for the structural bolts page
 const translations = {
+  meta: {
+    title: {
+      en: 'Structural Bolts & High-Strength Fasteners | InoxBolt - 8.8/10.9/12.9 Grade',
+      es: 'Tornillos Estructurales de Alta Resistencia | InoxBolt - Clase 8.8/10.9/12.9',
+    },
+    description: {
+      en: 'Premium high-strength structural fasteners 8.8, 10.9, 12.9 grade for steel construction, bridges, and industrial applications. DIN/ISO certified. Fast delivery Spain.',
+      es: 'Tornilleria estructural de alta resistencia clases 8.8, 10.9, 12.9 para construccion metalica, puentes y aplicaciones industriales. Certificacion DIN/ISO. Entrega rapida.',
+    },
+  },
   hero: {
     title: {
       en: 'Structural Bolts & High-Strength Fasteners',
@@ -42,27 +80,27 @@ const translations = {
     },
     subtitle: {
       en: 'Premium fasteners for construction, steel structures, and heavy-duty industrial applications',
-      es: 'Fijaciones premium para construcción, estructuras de acero y aplicaciones industriales pesadas',
+      es: 'Fijaciones premium para construccion, estructuras de acero y aplicaciones industriales pesadas',
     },
   },
   intro: {
     title: {
       en: 'High-Strength Structural Fastening Solutions',
-      es: 'Soluciones de Fijación Estructural de Alta Resistencia',
+      es: 'Soluciones de Fijacion Estructural de Alta Resistencia',
     },
     p1: {
       en: 'Our structural bolt range covers the most demanding applications in steel construction, bridge building, and heavy machinery. Available in strength grades 8.8, 10.9, and 12.9, these fasteners meet the highest European standards for structural integrity and safety.',
-      es: 'Nuestra gama de tornillos estructurales cubre las aplicaciones más exigentes en construcción de acero, puentes y maquinaria pesada. Disponibles en clases de resistencia 8.8, 10.9 y 12.9, estos elementos de fijación cumplen los estándares europeos más exigentes en integridad estructural y seguridad.',
+      es: 'Nuestra gama de tornillos estructurales cubre las aplicaciones mas exigentes en construccion de acero, puentes y maquinaria pesada. Disponibles en clases de resistencia 8.8, 10.9 y 12.9, estos elementos de fijacion cumplen los estandares europeos mas exigentes en integridad estructural y seguridad.',
     },
     p2: {
       en: 'All products are certified to DIN/ISO standards with full traceability and test certificates available. Surface treatments include hot-dip galvanizing, zinc flake coating (Geomet/Dacromet), and phosphate finishes for optimal corrosion protection.',
-      es: 'Todos los productos están certificados según normas DIN/ISO con trazabilidad completa y certificados de ensayo disponibles. Los tratamientos superficiales incluyen galvanizado en caliente, recubrimiento de zinc laminar (Geomet/Dacromet) y acabados fosfatados para una protección óptima contra la corrosión.',
+      es: 'Todos los productos estan certificados segun normas DIN/ISO con trazabilidad completa y certificados de ensayo disponibles. Los tratamientos superficiales incluyen galvanizado en caliente, recubrimiento de zinc laminar (Geomet/Dacromet) y acabados fosfatados para una proteccion optima contra la corrosion.',
     },
   },
   products: {
     title: {
       en: 'Key Product Lines',
-      es: 'Líneas de Producto Principales',
+      es: 'Lineas de Producto Principales',
     },
     viewAll: {
       en: 'View All Products',
@@ -80,11 +118,11 @@ const translations = {
   technical: {
     title: {
       en: 'Technical Specifications',
-      es: 'Especificaciones Técnicas',
+      es: 'Especificaciones Tecnicas',
     },
     strengthComparison: {
       en: 'Strength Grade Comparison',
-      es: 'Comparación de Clases de Resistencia',
+      es: 'Comparacion de Clases de Resistencia',
     },
     torqueSpecs: {
       en: 'Torque & Pre-load Values',
@@ -101,20 +139,20 @@ const translations = {
       es: 'Aplicaciones',
     },
     steel: {
-      title: { en: 'Steel Frame Construction', es: 'Construcción con Estructura de Acero' },
+      title: { en: 'Steel Frame Construction', es: 'Construccion con Estructura de Acero' },
       desc: { en: 'Primary connections in steel buildings, warehouses, and industrial facilities', es: 'Conexiones principales en edificios de acero, naves y instalaciones industriales' },
     },
     bridges: {
-      title: { en: 'Bridge Building', es: 'Construcción de Puentes' },
+      title: { en: 'Bridge Building', es: 'Construccion de Puentes' },
       desc: { en: 'High-strength connections for road, rail, and pedestrian bridges', es: 'Conexiones de alta resistencia para puentes de carretera, ferrocarril y peatonales' },
     },
     machinery: {
       title: { en: 'Industrial Machinery', es: 'Maquinaria Industrial' },
-      desc: { en: 'Heavy equipment assembly and mechanical engineering applications', es: 'Montaje de equipos pesados y aplicaciones de ingeniería mecánica' },
+      desc: { en: 'Heavy equipment assembly and mechanical engineering applications', es: 'Montaje de equipos pesados y aplicaciones de ingenieria mecanica' },
     },
     automotive: {
-      title: { en: 'Automotive & Transport', es: 'Automoción y Transporte' },
-      desc: { en: 'Chassis, suspension, and structural components for vehicles', es: 'Chasis, suspensión y componentes estructurales para vehículos' },
+      title: { en: 'Automotive & Transport', es: 'Automocion y Transporte' },
+      desc: { en: 'Chassis, suspension, and structural components for vehicles', es: 'Chasis, suspension y componentes estructurales para vehiculos' },
     },
   },
   logistics: {
@@ -124,15 +162,15 @@ const translations = {
     },
     stock: {
       title: { en: 'Large Stock Availability', es: 'Gran Disponibilidad de Stock' },
-      desc: { en: 'Over 500,000 structural fasteners in stock for immediate dispatch', es: 'Más de 500.000 fijaciones estructurales en stock para envío inmediato' },
+      desc: { en: 'Over 500,000 structural fasteners in stock for immediate dispatch', es: 'Mas de 500.000 fijaciones estructurales en stock para envio inmediato' },
     },
     discount: {
       title: { en: 'Volume Discounts', es: 'Descuentos por Volumen' },
       desc: { en: 'Competitive pricing for large project quantities - request a quote', es: 'Precios competitivos para grandes cantidades de proyecto - solicite presupuesto' },
     },
     delivery: {
-      title: { en: 'Fast Delivery', es: 'Entrega Rápida' },
-      desc: { en: '24-48h to mainland Spain, weekly shipments to Canary Islands', es: '24-48h a península, envíos semanales a Canarias' },
+      title: { en: 'Fast Delivery', es: 'Entrega Rapida' },
+      desc: { en: '24-48h to mainland Spain, weekly shipments to Canary Islands', es: '24-48h a peninsula, envios semanales a Canarias' },
     },
   },
   quote: {
@@ -142,9 +180,9 @@ const translations = {
     },
     desc: {
       en: 'Get competitive pricing for your structural fastener requirements',
-      es: 'Obtenga precios competitivos para sus necesidades de fijación estructural',
+      es: 'Obtenga precios competitivos para sus necesidades de fijacion estructural',
     },
-    email: { en: 'Email', es: 'Correo electrónico' },
+    email: { en: 'Email', es: 'Correo electronico' },
     company: { en: 'Company', es: 'Empresa' },
     message: { en: 'Requirements', es: 'Requisitos' },
     messagePlaceholder: {
@@ -152,91 +190,183 @@ const translations = {
       es: 'Describa sus requisitos de proyecto: cantidades, medidas, clases, lugar de entrega...',
     },
     submit: { en: 'Send Quote Request', es: 'Enviar Solicitud' },
-    category: { en: 'Category', es: 'Categoría' },
+    category: { en: 'Category', es: 'Categoria' },
+    success: { en: 'Request sent! We will contact you within 2 hours.', es: 'Solicitud enviada! Le contactaremos en 2 horas.' },
   },
   table: {
     grade: { en: 'Grade', es: 'Clase' },
-    tensileStrength: { en: 'Tensile Strength', es: 'Resistencia a Tracción' },
-    yieldStrength: { en: 'Yield Strength', es: 'Límite Elástico' },
+    tensileStrength: { en: 'Tensile Strength', es: 'Resistencia a Traccion' },
+    yieldStrength: { en: 'Yield Strength', es: 'Limite Elastico' },
     elongation: { en: 'Elongation', es: 'Alargamiento' },
-    applications: { en: 'Typical Applications', es: 'Aplicaciones Típicas' },
+    applications: { en: 'Typical Applications', es: 'Aplicaciones Tipicas' },
     size: { en: 'Size', es: 'Medida' },
     torque: { en: 'Torque (Nm)', es: 'Par (Nm)' },
     preload: { en: 'Preload (kN)', es: 'Precarga (kN)' },
     coating: { en: 'Coating', es: 'Recubrimiento' },
     thickness: { en: 'Thickness', es: 'Espesor' },
-    corrosionResistance: { en: 'Corrosion Resistance', es: 'Resistencia a Corrosión' },
+    corrosionResistance: { en: 'Corrosion Resistance', es: 'Resistencia a Corrosion' },
     color: { en: 'Color', es: 'Color' },
+  },
+  categories: {
+    all: { en: 'All Products', es: 'Todos' },
+    bolts: { en: 'Hex Bolts', es: 'Tornillos Hex' },
+    hvSets: { en: 'HV Sets', es: 'Conjuntos HV' },
+    nuts: { en: 'Nuts', es: 'Tuercas' },
+    washers: { en: 'Washers', es: 'Arandelas' },
+  },
+  related: {
+    title: { en: 'Complete Your Assembly', es: 'Complete Su Montaje' },
   },
 };
 
-// Product data
-const products = [
+// Category navigation items
+const categories: CategoryNavItem[] = [
+  { id: 'all', label: { en: 'All Products', es: 'Todos' }, icon: <Wrench className="w-4 h-4" /> },
+  { id: 'bolts', label: { en: 'Hex Bolts', es: 'Tornillos Hex' }, icon: <Settings className="w-4 h-4" /> },
+  { id: 'hvSets', label: { en: 'HV Sets', es: 'Conjuntos HV' }, icon: <Package className="w-4 h-4" /> },
+  { id: 'nuts', label: { en: 'Nuts', es: 'Tuercas' }, icon: <CircleDot className="w-4 h-4" /> },
+  { id: 'washers', label: { en: 'Washers', es: 'Arandelas' }, icon: <CircleDot className="w-4 h-4" /> },
+];
+
+// Product data with enhanced structure for ProductCardData
+const products: ProductCardData[] = [
   {
     id: 'din-931',
     standard: 'DIN 931 / ISO 4014',
     name: { en: 'Hex Head Bolts (Partial Thread)', es: 'Tornillos Hexagonales (Rosca Parcial)' },
-    grades: ['8.8', '10.9', '12.9'],
-    finishes: ['Zinc', 'HDG', 'Geomet'],
+    description: {
+      en: 'Partially threaded hex bolts for structural shear connections',
+      es: 'Tornillos hexagonales de rosca parcial para conexiones estructurales a cortante',
+    },
+    materials: ['8.8', '10.9', '12.9'],
     image: '/images/products/hex-bolt-partial.jpg',
+    searchQuery: 'DIN 931 structural',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M6-M64' },
+      { label: { en: 'Length', es: 'Longitud' }, value: '30-500mm' },
+    ],
   },
   {
     id: 'din-933',
     standard: 'DIN 933 / ISO 4017',
     name: { en: 'Hex Head Bolts (Full Thread)', es: 'Tornillos Hexagonales (Rosca Completa)' },
-    grades: ['8.8', '10.9', '12.9'],
-    finishes: ['Zinc', 'HDG', 'Phosphate'],
+    description: {
+      en: 'Fully threaded hex bolts for general structural applications',
+      es: 'Tornillos hexagonales de rosca completa para aplicaciones estructurales generales',
+    },
+    materials: ['8.8', '10.9', '12.9'],
     image: '/images/products/hex-bolt-full.jpg',
+    searchQuery: 'DIN 933 structural',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M6-M48' },
+      { label: { en: 'Length', es: 'Longitud' }, value: '10-300mm' },
+    ],
   },
   {
     id: 'din-912',
     standard: 'DIN 912 / ISO 4762',
-    name: { en: 'Socket Head Cap Screws', es: 'Tornillos Allen Cilíndricos' },
-    grades: ['10.9', '12.9'],
-    finishes: ['Black Oxide', 'Zinc', 'Geomet'],
+    name: { en: 'Socket Head Cap Screws', es: 'Tornillos Allen Cilindricos' },
+    description: {
+      en: 'Internal hex drive for precision structural assemblies',
+      es: 'Cabeza con hexagono interior para montajes estructurales de precision',
+    },
+    materials: ['10.9', '12.9'],
     image: '/images/products/socket-cap.jpg',
+    searchQuery: 'DIN 912 high strength',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M3-M36' },
+      { label: { en: 'Length', es: 'Longitud' }, value: '6-200mm' },
+    ],
   },
   {
     id: 'din-6914',
     standard: 'DIN 6914',
     name: { en: 'HV Structural Hex Bolts', es: 'Tornillos Hexagonales Estructurales HV' },
-    grades: ['10.9'],
-    finishes: ['HDG', 'Geomet', 'Dacromet'],
+    description: {
+      en: 'High-strength preload bolts for structural steel connections',
+      es: 'Tornillos de alta resistencia con precarga para conexiones de acero estructural',
+    },
+    materials: ['10.9'],
     image: '/images/products/hv-bolt.jpg',
+    searchQuery: 'DIN 6914 HV bolt',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M12-M36' },
+      { label: { en: 'Coating', es: 'Acabado' }, value: 'HDG/Geomet' },
+    ],
   },
   {
     id: 'din-6915',
     standard: 'DIN 6915',
     name: { en: 'HV Structural Hex Nuts', es: 'Tuercas Hexagonales Estructurales HV' },
-    grades: ['10'],
-    finishes: ['HDG', 'Geomet'],
+    description: {
+      en: 'High-strength nuts designed for use with DIN 6914 bolts',
+      es: 'Tuercas de alta resistencia disenadas para uso con tornillos DIN 6914',
+    },
+    materials: ['10'],
     image: '/images/products/hv-nut.jpg',
+    searchQuery: 'DIN 6915 HV nut',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M12-M36' },
+      { label: { en: 'Type', es: 'Tipo' }, value: 'HV Structural' },
+    ],
   },
   {
     id: 'din-6916',
     standard: 'DIN 6916',
     name: { en: 'HV Structural Washers', es: 'Arandelas Estructurales HV' },
-    grades: ['300HV'],
-    finishes: ['HDG', 'Geomet'],
+    description: {
+      en: 'Hardened washers for HV structural bolt sets',
+      es: 'Arandelas endurecidas para conjuntos de tornillos estructurales HV',
+    },
+    materials: ['300HV'],
     image: '/images/products/hv-washer.jpg',
+    searchQuery: 'DIN 6916 HV washer',
+    specs: [
+      { label: { en: 'Size', es: 'Medida' }, value: 'M12-M36' },
+      { label: { en: 'Hardness', es: 'Dureza' }, value: '300-370 HV' },
+    ],
   },
   {
     id: 'din-7990',
     standard: 'DIN 7990',
     name: { en: 'Hexagon Fit Bolts for Steel Structures', es: 'Tornillos de Ajuste para Estructuras de Acero' },
-    grades: ['8.8', '10.9'],
-    finishes: ['HDG', 'Zinc'],
+    description: {
+      en: 'Fit bolts for accurate hole-to-bolt clearance in steel structures',
+      es: 'Tornillos de ajuste para tolerancia precisa entre agujero y tornillo en estructuras de acero',
+    },
+    materials: ['8.8', '10.9'],
     image: '/images/products/fit-bolt.jpg',
+    searchQuery: 'DIN 7990 fit bolt',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M12-M30' },
+      { label: { en: 'Fit', es: 'Ajuste' }, value: 'h11' },
+    ],
   },
   {
     id: 'din-934-structural',
     standard: 'DIN 934 Class 8/10',
     name: { en: 'Structural Hex Nuts', es: 'Tuercas Hexagonales Estructurales' },
-    grades: ['8', '10'],
-    finishes: ['Zinc', 'HDG', 'Phosphate'],
+    description: {
+      en: 'High-strength hex nuts for structural bolted connections',
+      es: 'Tuercas hexagonales de alta resistencia para conexiones estructurales atornilladas',
+    },
+    materials: ['8', '10'],
     image: '/images/products/structural-nut.jpg',
+    searchQuery: 'DIN 934 class 10',
+    specs: [
+      { label: { en: 'Thread', es: 'Rosca' }, value: 'M6-M64' },
+      { label: { en: 'Class', es: 'Clase' }, value: '8/10' },
+    ],
   },
 ];
+
+// Map products to categories
+const productCategories: Record<string, string[]> = {
+  bolts: ['din-931', 'din-933', 'din-912', 'din-7990'],
+  hvSets: ['din-6914', 'din-6915', 'din-6916'],
+  nuts: ['din-934-structural'],
+  washers: ['din-6916'],
+};
 
 // Strength grade comparison data
 const strengthGrades = [
@@ -259,7 +389,7 @@ const strengthGrades = [
     tensile: '1220 MPa',
     yield: '1100 MPa',
     elongation: '8%',
-    applications: { en: 'Critical connections, aerospace', es: 'Conexiones críticas, aeroespacial' },
+    applications: { en: 'Critical connections, aerospace', es: 'Conexiones criticas, aeroespacial' },
   },
 ];
 
@@ -276,32 +406,62 @@ const torqueSpecs = [
 const coatings = [
   {
     name: { en: 'Hot-Dip Galvanized (HDG)', es: 'Galvanizado en Caliente (HDG)' },
-    thickness: '45-85 μm',
+    thickness: '45-85 um',
     resistance: { en: 'Excellent', es: 'Excelente' },
     color: { en: 'Silver-grey', es: 'Gris plateado' },
   },
   {
     name: { en: 'Zinc Flake (Geomet)', es: 'Zinc Laminar (Geomet)' },
-    thickness: '8-15 μm',
+    thickness: '8-15 um',
     resistance: { en: 'Very Good', es: 'Muy Buena' },
     color: { en: 'Silver', es: 'Plateado' },
   },
   {
-    name: { en: 'Electroplated Zinc', es: 'Zincado Electrolítico' },
-    thickness: '5-12 μm',
+    name: { en: 'Electroplated Zinc', es: 'Zincado Electrolitico' },
+    thickness: '5-12 um',
     resistance: { en: 'Good', es: 'Buena' },
     color: { en: 'Bright/Yellow', es: 'Brillante/Amarillo' },
   },
   {
     name: { en: 'Phosphate', es: 'Fosfatado' },
-    thickness: '2-5 μm',
+    thickness: '2-5 um',
     resistance: { en: 'Moderate', es: 'Moderada' },
     color: { en: 'Dark grey/Black', es: 'Gris oscuro/Negro' },
   },
 ];
 
+// Related products for cross-linking
+const relatedProducts = [
+  {
+    name: { en: 'DIN 6915 HV Nuts', es: 'Tuercas HV DIN 6915' },
+    href: '/search?q=DIN6915+HV',
+    icon: <CircleDot className="w-6 h-6" />,
+    badge: 'Class 10',
+  },
+  {
+    name: { en: 'DIN 6916 HV Washers', es: 'Arandelas HV DIN 6916' },
+    href: '/search?q=DIN6916+HV',
+    icon: <CircleDot className="w-6 h-6" />,
+    badge: '300HV',
+  },
+  {
+    name: { en: 'Anchor Bolts', es: 'Pernos de Anclaje' },
+    href: '/search?q=anchor+bolt',
+    icon: <Anchor className="w-6 h-6" />,
+    badge: 'HDG',
+  },
+  {
+    name: { en: 'Threaded Rods Class 8.8', es: 'Varillas Roscadas Clase 8.8' },
+    href: '/search?q=DIN976+8.8',
+    icon: <Ruler className="w-6 h-6" />,
+    badge: '1m-3m',
+  },
+];
+
 export default function StructuralBoltsPage() {
   const { language } = useLanguage();
+
+  // State
   const [formData, setFormData] = useState({
     email: '',
     company: '',
@@ -309,6 +469,15 @@ export default function StructuralBoltsPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [quickViewProduct, setQuickViewProduct] = useState<ProductCardData | null>(null);
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
+  const [quoteProducts, setQuoteProducts] = useState<ProductCardData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Section refs for tracking
+  const sectionIds = ['products', 'technical', 'applications', 'logistics', 'quote'];
+  const activeSection = useActiveSectionTracker(sectionIds);
 
   const t = (key: keyof typeof translations, subKey?: string, subSubKey?: string): string => {
     const section = translations[key] as Record<string, unknown>;
@@ -327,6 +496,33 @@ export default function StructuralBoltsPage() {
     return '';
   };
 
+  // Filter products by category
+  const filteredProducts = activeCategory === 'all'
+    ? products
+    : products.filter((p) => productCategories[activeCategory]?.includes(p.id));
+
+  // Scroll to section
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 150;
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: elementPosition - offset,
+        behavior: 'smooth',
+      });
+    }
+    setActiveCategory(id);
+  };
+
+  // Handle adding product to quote
+  const handleAddToQuote = (product: ProductCardData) => {
+    if (!quoteProducts.find((p) => p.id === product.id)) {
+      setQuoteProducts([...quoteProducts, product]);
+    }
+    setQuoteModalOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -341,8 +537,36 @@ export default function StructuralBoltsPage() {
     setTimeout(() => setSubmitSuccess(false), 5000);
   };
 
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : 'https://inoxbolt.es/structural-bolts';
+
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans text-slate-900">
+      {/* SEO Meta Tags */}
+      <MetaTags
+        title={t('meta', 'title')}
+        description={t('meta', 'description')}
+        image="/images/og/structural-bolts.jpg"
+        url={pageUrl}
+      />
+
+      {/* JSON-LD Structured Data */}
+      <ProductJsonLd
+        products={products.map((p) => ({
+          name: p.name[language as 'en' | 'es'],
+          description: p.description[language as 'en' | 'es'],
+          image: p.image,
+          brand: 'InoxBolt',
+          category: 'Structural Bolts & High-Strength Fasteners',
+          offers: {
+            availability: 'https://schema.org/InStock',
+            priceCurrency: 'EUR',
+          },
+        }))}
+        pageTitle={t('meta', 'title')}
+        pageDescription={t('meta', 'description')}
+        pageUrl={pageUrl}
+      />
+
       <Navbar />
 
       <main className="flex-grow">
@@ -357,6 +581,16 @@ export default function StructuralBoltsPage() {
 
           <div className="container relative z-10">
             <div className="max-w-4xl mx-auto text-center">
+              {/* Breadcrumb */}
+              <div className="mb-8">
+                <Breadcrumbs
+                  items={[
+                    { label: language === 'es' ? 'Productos' : 'Products', href: '/search' },
+                    { label: t('hero', 'title') },
+                  ]}
+                />
+              </div>
+
               <Badge className="mb-6 bg-inox-teal/20 text-inox-teal border-inox-teal/30 hover:bg-inox-teal/30">
                 <ShieldCheck className="w-3 h-3 mr-1" />
                 DIN/ISO Certified
@@ -383,12 +617,28 @@ export default function StructuralBoltsPage() {
                   </Button>
                 </a>
               </div>
+
+              {/* Share button */}
+              <div className="mt-8 flex justify-center">
+                <ShareButton
+                  title={t('meta', 'title')}
+                  url={pageUrl}
+                  description={t('meta', 'description')}
+                />
+              </div>
             </div>
           </div>
 
           {/* Decorative Elements */}
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent" />
         </section>
+
+        {/* Sticky Category Navigation */}
+        <StickyCategoryNav
+          categories={categories}
+          activeCategory={activeCategory}
+          onCategoryClick={scrollToSection}
+        />
 
         {/* Introduction Section */}
         <section className="py-20 bg-white">
@@ -420,7 +670,7 @@ export default function StructuralBoltsPage() {
                 </div>
                 <div className="text-center p-6 bg-slate-50 rounded-2xl">
                   <div className="text-3xl font-bold text-inox-teal mb-2">DIN/ISO</div>
-                  <div className="text-sm text-slate-600">{language === 'es' ? 'Certificación' : 'Certification'}</div>
+                  <div className="text-sm text-slate-600">{language === 'es' ? 'Certificacion' : 'Certification'}</div>
                 </div>
                 <div className="text-center p-6 bg-slate-50 rounded-2xl">
                   <div className="text-3xl font-bold text-inox-teal mb-2">M6-M64</div>
@@ -436,7 +686,7 @@ export default function StructuralBoltsPage() {
         </section>
 
         {/* Product Lines Grid */}
-        <section className="py-20 bg-slate-50">
+        <section id="products" className="py-20 bg-slate-50">
           <div className="container">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -445,72 +695,42 @@ export default function StructuralBoltsPage() {
               <div className="w-20 h-1.5 bg-inox-teal mx-auto rounded-full" />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/search?category=structural&standard=${encodeURIComponent(product.standard)}`}
-                >
-                  <Card className="group h-full hover:shadow-lg transition-all duration-300 border-slate-200 hover:border-inox-teal/50 cursor-pointer overflow-hidden">
-                    {/* Product Image Placeholder */}
-                    <div className="aspect-[4/3] bg-gradient-to-br from-slate-100 to-slate-200 relative overflow-hidden">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Wrench className="w-16 h-16 text-slate-300 group-hover:text-inox-teal/50 transition-colors" />
-                      </div>
-                      <div className="absolute top-3 left-3">
-                        <Badge variant="secondary" className="bg-white/90 text-slate-700 text-xs">
-                          {product.standard.split(' / ')[0]}
-                        </Badge>
-                      </div>
-                    </div>
+            {/* Mobile Carousel */}
+            <MobileProductCarousel
+              products={filteredProducts}
+              onQuickView={setQuickViewProduct}
+              onAddToQuote={handleAddToQuote}
+            />
 
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-bold text-slate-900 group-hover:text-inox-teal transition-colors">
-                        {product.name[language as 'en' | 'es']}
-                      </CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
-                        {product.standard}
-                      </CardDescription>
-                    </CardHeader>
+            {/* Desktop Grid */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {isLoading
+                ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
+                : filteredProducts.map((product) => (
+                    <EnhancedProductCard
+                      key={product.id}
+                      product={product}
+                      onQuickView={setQuickViewProduct}
+                      onAddToQuote={handleAddToQuote}
+                    />
+                  ))}
+            </div>
 
-                    <CardContent className="pt-0">
-                      <div className="space-y-3">
-                        <div>
-                          <span className="text-xs text-slate-500 block mb-1.5">{t('products', 'gradesAvailable')}:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {product.grades.map((grade) => (
-                              <Badge key={grade} variant="outline" className="text-xs bg-slate-50">
-                                {grade}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-xs text-slate-500 block mb-1.5">{t('products', 'finishes')}:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {product.finishes.map((finish) => (
-                              <Badge key={finish} variant="outline" className="text-xs bg-slate-50">
-                                {finish}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex items-center text-sm text-inox-teal font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                        {t('products', 'viewAll')}
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
+            {/* View All Button */}
+            <div className="text-center mt-12">
+              <Link
+                href="/search?category=structural"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-inox-teal text-white font-semibold rounded-full shadow-lg shadow-inox-teal/20 hover:bg-inox-blue hover:scale-105 transition-all duration-300"
+              >
+                {t('products', 'viewAll')}
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </div>
           </div>
         </section>
 
         {/* Technical Specifications */}
-        <section className="py-20 bg-white">
+        <section id="technical" className="py-20 bg-white">
           <div className="container">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -520,8 +740,8 @@ export default function StructuralBoltsPage() {
             </div>
 
             <div className="space-y-16">
-              {/* Strength Grade Comparison */}
-              <div>
+              {/* Strength Grade Comparison - Desktop */}
+              <div className="hidden md:block">
                 <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
                   <Gauge className="w-5 h-5 text-inox-teal" />
                   {t('technical', 'strengthComparison')}
@@ -552,8 +772,37 @@ export default function StructuralBoltsPage() {
                 </div>
               </div>
 
-              {/* Torque Specifications */}
-              <div>
+              {/* Strength Grade Comparison - Mobile Collapsible */}
+              <div className="md:hidden space-y-4">
+                <CollapsibleSpecs title={t('technical', 'strengthComparison')} defaultOpen>
+                  <div className="space-y-3">
+                    {strengthGrades.map((grade) => (
+                      <div key={grade.grade} className="bg-white rounded-lg p-4 border border-slate-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge className="bg-inox-teal text-white">{grade.grade}</Badge>
+                          <span className="font-semibold text-slate-900">{grade.tensile}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-slate-500 block">{translations.table.yieldStrength[language as 'en' | 'es']}</span>
+                            <span className="font-medium">{grade.yield}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block">{translations.table.elongation[language as 'en' | 'es']}</span>
+                            <span className="font-medium">{grade.elongation}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-sm text-slate-600">
+                          {grade.applications[language as 'en' | 'es']}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleSpecs>
+              </div>
+
+              {/* Torque Specifications - Desktop */}
+              <div className="hidden md:block">
                 <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
                   <Wrench className="w-5 h-5 text-inox-teal" />
                   {t('technical', 'torqueSpecs')}
@@ -592,13 +841,40 @@ export default function StructuralBoltsPage() {
                 </div>
                 <p className="text-sm text-slate-500 mt-3">
                   * {language === 'es'
-                    ? 'Valores de referencia para tornillos con coeficiente de fricción μ = 0.12. Consultar especificaciones del fabricante.'
-                    : 'Reference values for bolts with friction coefficient μ = 0.12. Consult manufacturer specifications.'}
+                    ? 'Valores de referencia para tornillos con coeficiente de friccion mu = 0.12. Consultar especificaciones del fabricante.'
+                    : 'Reference values for bolts with friction coefficient mu = 0.12. Consult manufacturer specifications.'}
                 </p>
               </div>
 
-              {/* Coating Options */}
-              <div>
+              {/* Torque Specifications - Mobile Collapsible */}
+              <div className="md:hidden">
+                <CollapsibleSpecs title={t('technical', 'torqueSpecs')}>
+                  <div className="space-y-3">
+                    {torqueSpecs.map((spec) => (
+                      <div key={spec.size} className="bg-white rounded-lg p-4 border border-slate-200">
+                        <div className="font-bold text-lg text-slate-900 mb-3">{spec.size}</div>
+                        <div className="grid grid-cols-3 gap-2 text-sm mb-2">
+                          <div className="bg-slate-50 rounded p-2 text-center">
+                            <div className="text-xs text-slate-500">8.8</div>
+                            <div className="font-medium">{spec.torque88} Nm</div>
+                          </div>
+                          <div className="bg-slate-50 rounded p-2 text-center">
+                            <div className="text-xs text-slate-500">10.9</div>
+                            <div className="font-medium">{spec.torque109} Nm</div>
+                          </div>
+                          <div className="bg-slate-50 rounded p-2 text-center">
+                            <div className="text-xs text-slate-500">12.9</div>
+                            <div className="font-medium">{spec.torque129} Nm</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleSpecs>
+              </div>
+
+              {/* Coating Options - Desktop */}
+              <div className="hidden md:block">
                 <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-inox-teal" />
                   {t('technical', 'coatings')}
@@ -626,12 +902,41 @@ export default function StructuralBoltsPage() {
                   </Table>
                 </div>
               </div>
+
+              {/* Coating Options - Mobile Collapsible */}
+              <div className="md:hidden">
+                <CollapsibleSpecs title={t('technical', 'coatings')}>
+                  <div className="space-y-3">
+                    {coatings.map((coating, index) => (
+                      <div key={index} className="bg-white rounded-lg p-4 border border-slate-200">
+                        <div className="font-semibold text-slate-900 mb-2">
+                          {coating.name[language as 'en' | 'es']}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <span className="text-slate-500 block text-xs">{translations.table.thickness[language as 'en' | 'es']}</span>
+                            <span className="font-medium">{coating.thickness}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-xs">{translations.table.corrosionResistance[language as 'en' | 'es']}</span>
+                            <span className="font-medium">{coating.resistance[language as 'en' | 'es']}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-xs">{translations.table.color[language as 'en' | 'es']}</span>
+                            <span className="font-medium">{coating.color[language as 'en' | 'es']}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleSpecs>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Applications Section */}
-        <section className="py-20 bg-slate-50">
+        <section id="applications" className="py-20 bg-slate-50">
           <div className="container">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -693,7 +998,7 @@ export default function StructuralBoltsPage() {
         </section>
 
         {/* Logistics Info */}
-        <section className="py-20 bg-white">
+        <section id="logistics" className="py-20 bg-white">
           <div className="container">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
@@ -742,6 +1047,30 @@ export default function StructuralBoltsPage() {
           </div>
         </section>
 
+        {/* Related Products */}
+        <RelatedProducts
+          title={translations.related.title[language as 'en' | 'es']}
+          products={relatedProducts}
+        />
+
+        {/* Cross-Link to Stainless Steel */}
+        <CrossLinkBanner
+          title={{
+            en: 'Need Corrosion Resistance?',
+            es: 'Necesita Resistencia a la Corrosion?',
+          }}
+          description={{
+            en: 'Explore our A2/A4 stainless steel fasteners for marine, food, and chemical applications.',
+            es: 'Explore nuestra tornilleria de acero inoxidable A2/A4 para aplicaciones marinas, alimentarias y quimicas.',
+          }}
+          href="/stainless-fasteners"
+          ctaText={{
+            en: 'View Stainless Fasteners',
+            es: 'Ver Tornilleria Inoxidable',
+          }}
+          icon={<Droplets className="w-8 h-8" />}
+        />
+
         {/* Inline Quote Form */}
         <section id="quote" className="py-20 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
           <div className="container">
@@ -762,9 +1091,7 @@ export default function StructuralBoltsPage() {
                     {language === 'es' ? 'Solicitud Enviada' : 'Request Sent'}
                   </h3>
                   <p className="text-slate-300">
-                    {language === 'es'
-                      ? 'Nos pondremos en contacto contigo en menos de 2 horas.'
-                      : 'We will contact you within 2 hours.'}
+                    {t('quote', 'success')}
                   </p>
                 </div>
               ) : (
@@ -801,12 +1128,12 @@ export default function StructuralBoltsPage() {
                     <label className="block text-sm font-medium text-slate-300 mb-2">
                       {translations.quote.category[language as 'en' | 'es']}
                     </label>
-                    <Input
-                      type="text"
-                      disabled
-                      value={language === 'es' ? 'Tornillos Estructurales' : 'Structural Bolts'}
-                      className="bg-inox-teal/20 border-inox-teal/30 text-inox-teal cursor-not-allowed"
-                    />
+                    <div className="flex items-center gap-2 px-4 py-3 bg-inox-teal/20 rounded-lg border border-inox-teal/30 w-fit">
+                      <Wrench className="w-4 h-4 text-inox-teal" />
+                      <span className="text-sm font-medium text-inox-teal">
+                        {language === 'es' ? 'Tornillos Estructurales' : 'Structural Bolts'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mb-6">
@@ -865,6 +1192,25 @@ export default function StructuralBoltsPage() {
       </main>
 
       <Footer />
+
+      {/* Floating Get Quote Button (Mobile) */}
+      <FloatingQuoteButton onClick={() => setQuoteModalOpen(true)} />
+
+      {/* Quick View Modal */}
+      <QuickViewModal
+        open={!!quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+        product={quickViewProduct}
+        onAddToQuote={handleAddToQuote}
+      />
+
+      {/* Quick Quote Modal */}
+      <QuickQuoteModal
+        open={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        products={quoteProducts}
+        category={language === 'es' ? 'Tornillos Estructurales' : 'Structural Bolts'}
+      />
     </div>
   );
 }
