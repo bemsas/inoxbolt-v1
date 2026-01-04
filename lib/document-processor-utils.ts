@@ -1,6 +1,7 @@
 /**
  * Document Processor Utilities
  * Extracted pure functions for testing and reuse
+ * Enhanced for 2025 Best Practices with structured extraction
  */
 
 export interface ChunkMetadata {
@@ -20,6 +21,15 @@ export interface ChunkMetadata {
   priceInfo?: string;
   packagingUnit?: string;
   description?: string;
+  // Enhanced metadata (2025)
+  category?: string;           // FastenerCategory
+  threadDiameter?: number;     // Parsed from threadType
+  threadLength?: number;       // Parsed from threadType
+  materialGrade?: string;      // Normalized material grade
+  boxQuantity?: number;        // Package quantity
+  unitPrice?: number;          // Price per piece
+  equivalentStandards?: string; // Related DIN/ISO standards
+  confidence?: number;         // Extraction confidence score
 }
 
 /**
@@ -289,7 +299,160 @@ export function extractProductMetadata(content: string): Partial<ChunkMetadata> 
   const packagingMatch = content.match(/\bS\s*(\d+)\b/);
   if (packagingMatch) {
     metadata.packagingUnit = `${packagingMatch[1]} pcs`;
+    metadata.boxQuantity = parseInt(packagingMatch[1], 10);
   }
 
+  // Enhanced: Parse thread dimensions
+  if (metadata.threadType) {
+    const threadParsed = parseThreadDimensions(metadata.threadType);
+    if (threadParsed) {
+      metadata.threadDiameter = threadParsed.diameter;
+      metadata.threadLength = threadParsed.length;
+    }
+  }
+
+  // Enhanced: Detect category from content
+  metadata.category = detectProductCategory(content, metadata.productType);
+
+  // Enhanced: Normalize material grade
+  if (metadata.material) {
+    metadata.materialGrade = normalizeMaterialCode(metadata.material);
+  }
+
+  // Enhanced: Find equivalent standards
+  if (metadata.standard) {
+    metadata.equivalentStandards = findEquivalentStandards(metadata.standard);
+  }
+
+  // Enhanced: Calculate unit price if we have box price and quantity
+  if (priceRange && metadata.boxQuantity) {
+    metadata.unitPrice = priceRange.min / metadata.boxQuantity;
+  }
+
+  // Enhanced: Set confidence based on data completeness
+  let confidence = 0.3;
+  if (metadata.standard) confidence += 0.2;
+  if (metadata.threadType) confidence += 0.2;
+  if (metadata.material) confidence += 0.15;
+  if (metadata.priceInfo) confidence += 0.15;
+  metadata.confidence = Math.min(confidence, 1.0);
+
   return metadata;
+}
+
+// =============================================================================
+// ENHANCED EXTRACTION HELPERS (2025)
+// =============================================================================
+
+/**
+ * Parse thread specification into diameter and length
+ */
+export function parseThreadDimensions(threadSpec: string): { diameter: number; length?: number } | null {
+  const match = threadSpec.match(/M(\d+(?:\.\d+)?)(x(\d+(?:\.\d+)?))?/i);
+  if (!match) return null;
+
+  return {
+    diameter: parseFloat(match[1]),
+    length: match[3] ? parseFloat(match[3]) : undefined,
+  };
+}
+
+/**
+ * Detect product category from content
+ */
+export function detectProductCategory(content: string, productType?: string): string {
+  if (productType) {
+    const categoryMap: Record<string, string> = {
+      bolt: 'bolt',
+      nut: 'nut',
+      washer: 'washer',
+      screw: 'screw',
+      stud: 'bolt',
+      anchor: 'anchor',
+      rivet: 'rivet',
+    };
+    if (categoryMap[productType]) return categoryMap[productType];
+  }
+
+  const lower = content.toLowerCase();
+
+  // Check standard-based categories
+  if (/din\s*93[13]|iso\s*401[47]|hex.*bolt/i.test(content)) return 'bolt';
+  if (/din\s*912|iso\s*4762|socket.*screw/i.test(content)) return 'screw';
+  if (/din\s*934|iso\s*403[23]|hex.*nut/i.test(content)) return 'nut';
+  if (/din\s*12[57]|iso\s*708[89]|washer/i.test(content)) return 'washer';
+  if (/din\s*97[56]|threaded.*rod/i.test(content)) return 'threaded_rod';
+
+  // Keyword-based
+  if (lower.includes('bolt') || lower.includes('perno')) return 'bolt';
+  if (lower.includes('screw') || lower.includes('tornillo')) return 'screw';
+  if (lower.includes('nut') || lower.includes('tuerca')) return 'nut';
+  if (lower.includes('washer') || lower.includes('arandela')) return 'washer';
+  if (lower.includes('anchor') || lower.includes('ancla')) return 'anchor';
+  if (lower.includes('rivet') || lower.includes('remache')) return 'rivet';
+  if (lower.includes('pin') || lower.includes('pasador')) return 'pin';
+
+  return 'other';
+}
+
+/**
+ * Normalize material code to standard format
+ */
+export function normalizeMaterialCode(raw: string): string {
+  const upper = raw.toUpperCase().replace(/[-\s]/g, '');
+
+  // Stainless grades
+  if (upper === 'A2' || upper === 'A270' || upper === '304' || upper === '188') return 'A2-70';
+  if (upper === 'A4' || upper === 'A470' || upper === '316') return 'A4-70';
+  if (upper === 'A480' || upper === '316TI') return 'A4-80';
+
+  // Steel grades
+  if (upper === '48' || upper === '4.8') return '4.8';
+  if (upper === '88' || upper === '8.8') return '8.8';
+  if (upper === '109' || upper === '10.9') return '10.9';
+  if (upper === '129' || upper === '12.9') return '12.9';
+
+  return raw.toUpperCase();
+}
+
+/**
+ * Find equivalent standards (DIN ↔ ISO mapping)
+ */
+export function findEquivalentStandards(standard: string): string {
+  const normalized = standard.replace(/\s+/g, '').toUpperCase();
+
+  const equivalents: Record<string, string[]> = {
+    // Hex bolts
+    'DIN933': ['ISO4017'],
+    'DIN931': ['ISO4014'],
+    'ISO4017': ['DIN933'],
+    'ISO4014': ['DIN931'],
+    // Socket cap screws
+    'DIN912': ['ISO4762'],
+    'ISO4762': ['DIN912'],
+    // Hex nuts
+    'DIN934': ['ISO4032', 'ISO4033'],
+    'ISO4032': ['DIN934'],
+    'ISO4033': ['DIN934'],
+    // Washers
+    'DIN125': ['ISO7089', 'ISO7090'],
+    'ISO7089': ['DIN125A'],
+    'ISO7090': ['DIN125B'],
+    // Countersunk screws
+    'DIN7991': ['ISO10642'],
+    'ISO10642': ['DIN7991'],
+    // Button head
+    'ISO7380': [],
+    // Lock nuts
+    'DIN985': ['ISO10511'],
+    'ISO10511': ['DIN985'],
+    // Set screws
+    'DIN913': ['ISO4026'],
+    'DIN914': ['ISO4027'],
+    'DIN915': ['ISO4028'],
+    'DIN916': ['ISO4029'],
+  };
+
+  const found = equivalents[normalized];
+  return found ? found.join(', ') : '';
 }
