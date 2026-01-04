@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Search, Menu, X, Globe } from 'lucide-react';
+import { Search, Menu, X, Globe, FileText, ChevronDown } from 'lucide-react';
 import { Link } from 'wouter';
 
 export default function Navbar() {
   const { language, toggleLanguage, t } = useLanguage();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -52,6 +53,41 @@ export default function Navbar() {
 
           {/* Links */}
           <div className="flex items-center gap-6">
+            {/* Products Dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={() => setProductsOpen(true)}
+              onMouseLeave={() => setProductsOpen(false)}
+            >
+              <button className="flex items-center gap-1 text-sm font-medium hover:text-inox-teal transition-colors text-slate-700">
+                {language === 'es' ? 'Productos' : 'Products'}
+                <ChevronDown className={`w-4 h-4 transition-transform ${productsOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {productsOpen && (
+                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-2 animate-in fade-in slide-in-from-top-2">
+                  <Link
+                    href="/stainless-fasteners"
+                    className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-inox-teal transition-colors"
+                  >
+                    {language === 'es' ? 'Acero Inoxidable' : 'Stainless Steel'}
+                  </Link>
+                  <Link
+                    href="/structural-bolts"
+                    className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-inox-teal transition-colors"
+                  >
+                    {language === 'es' ? 'Tornillos Estructurales' : 'Structural Bolts'}
+                  </Link>
+                  <div className="border-t border-slate-100 my-1"></div>
+                  <Link
+                    href="/search"
+                    className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-inox-teal transition-colors"
+                  >
+                    {language === 'es' ? 'Ver todos' : 'View all'}
+                  </Link>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => scrollToSection('catalogues')}
               className="text-sm font-medium hover:text-inox-teal transition-colors text-slate-700"
@@ -64,6 +100,15 @@ export default function Navbar() {
             >
               {t('nav.contact')}
             </button>
+
+            {/* Quote Button */}
+            <Link
+              href="/quote"
+              className="flex items-center gap-2 px-4 py-2 bg-inox-teal hover:bg-inox-teal/90 text-white rounded-full text-sm font-medium transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              {language === 'es' ? 'Presupuesto' : 'Get Quote'}
+            </Link>
 
             {/* Language Toggle */}
             <button
@@ -101,7 +146,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="absolute top-full left-0 w-full bg-white shadow-lg border-t border-slate-100 p-4 flex flex-col gap-4 lg:hidden animate-in slide-in-from-top-5">
+        <div className="absolute top-full left-0 w-full bg-white shadow-lg border-t border-slate-100 p-4 flex flex-col gap-2 lg:hidden animate-in slide-in-from-top-5">
           <Link
             href="/search"
             className="flex items-center gap-3 px-4 py-3 rounded-xl bg-inox-teal/10 text-inox-teal font-medium"
@@ -110,6 +155,28 @@ export default function Navbar() {
             <Search className="w-5 h-5" />
             {language === 'es' ? 'Buscar productos' : 'Search products'}
           </Link>
+
+          {/* Products Section */}
+          <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            {language === 'es' ? 'Productos' : 'Products'}
+          </div>
+          <Link
+            href="/stainless-fasteners"
+            className="text-left px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {language === 'es' ? 'Acero Inoxidable' : 'Stainless Steel'}
+          </Link>
+          <Link
+            href="/structural-bolts"
+            className="text-left px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {language === 'es' ? 'Tornillos Estructurales' : 'Structural Bolts'}
+          </Link>
+
+          <div className="border-t border-slate-100 my-2"></div>
+
           <button
             onClick={() => scrollToSection('catalogues')}
             className="text-left px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"
@@ -122,6 +189,16 @@ export default function Navbar() {
           >
             {t('nav.contact')}
           </button>
+
+          {/* Quote CTA */}
+          <Link
+            href="/quote"
+            className="flex items-center justify-center gap-2 px-4 py-3 mt-2 bg-inox-teal text-white rounded-xl font-medium"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <FileText className="w-5 h-5" />
+            {language === 'es' ? 'Solicitar Presupuesto' : 'Request Quote'}
+          </Link>
         </div>
       )}
     </nav>
