@@ -198,8 +198,8 @@ const translations = {
     es: 'Solicitar Presupuesto de Inoxidable',
   },
   'stainless.quote.desc': {
-    en: 'Tell us your requirements and receive a binding quote within 2 hours during business days.',
-    es: 'Cuentenos sus necesidades y reciba un presupuesto vinculante en 2 horas en dias laborables.',
+    en: 'Tell us your requirements and receive a binding quote within 24-48 hours during business days.',
+    es: 'Cuéntenos sus necesidades y reciba un presupuesto vinculante en 24-48 horas en días laborables.',
   },
   'stainless.quote.email': {
     en: 'Your email',

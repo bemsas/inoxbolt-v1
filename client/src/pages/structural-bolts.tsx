@@ -191,7 +191,7 @@ const translations = {
     },
     submit: { en: 'Send Quote Request', es: 'Enviar Solicitud' },
     category: { en: 'Category', es: 'Categoria' },
-    success: { en: 'Request sent! We will contact you within 2 hours.', es: 'Solicitud enviada! Le contactaremos en 2 horas.' },
+    success: { en: 'Request sent! We will contact you within 24-48 hours.', es: '¡Solicitud enviada! Le contactaremos en 24-48 horas.' },
   },
   table: {
     grade: { en: 'Grade', es: 'Clase' },

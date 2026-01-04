@@ -41,8 +41,8 @@ const translations: Record<string, Record<Language, string>> = {
   'logistics.canary.desc': { en: 'Local stock in Tenerife. No customs delays. We handle IGIC invoices directly.', es: 'Stock local en Tenerife. Sin retrasos de aduanas. Gestionamos facturas con IGIC directamente.' },
   'logistics.mainland.title': { en: 'Mainland Spain & Europe', es: 'Península y Europa' },
   'logistics.mainland.desc': { en: '24/48h express delivery for in-stock items. DDP (Delivered Duty Paid) service available.', es: 'Envío express 24/48h para artículos en stock. Servicio DDP (Entregado Derechos Pagados) disponible.' },
-  'logistics.sla.title': { en: '2-Hour Quote Promise', es: 'Presupuesto en 2 Horas' },
-  'logistics.sla.desc': { en: 'Send us your list. We reply with a binding quote and availability in under 2 hours during business days.', es: 'Envíenos su lista. Respondemos con presupuesto vinculante y disponibilidad en menos de 2 horas en días laborables.' },
+  'logistics.sla.title': { en: 'Fast Quote Response', es: 'Respuesta Rápida' },
+  'logistics.sla.desc': { en: 'Send us your list. We reply with a binding quote and availability within 24-48 hours during business days.', es: 'Envíenos su lista. Respondemos con presupuesto vinculante y disponibilidad en 24-48 horas en días laborables.' },
   
   // Suppliers
   'suppliers.title': { en: 'TRUSTED GLOBAL SUPPLIERS', es: 'PROVEEDORES GLOBALES DE CONFIANZA' },

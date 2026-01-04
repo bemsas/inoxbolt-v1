@@ -60,7 +60,7 @@ const sharedTranslations = {
   products: { en: 'Products', es: 'Productos' },
   getQuote: { en: 'Get Quote', es: 'Solicitar Cotizacion' },
   quickQuote: { en: 'Quick Quote', es: 'Cotizacion Rapida' },
-  quickQuoteDesc: { en: 'Fill in your details and we will contact you within 2 hours', es: 'Complete sus datos y le contactaremos en 2 horas' },
+  quickQuoteDesc: { en: 'Fill in your details and we will contact you within 24-48 hours', es: 'Complete sus datos y le contactaremos en 24-48 horas' },
   email: { en: 'Your email', es: 'Su correo electronico' },
   company: { en: 'Company / Project', es: 'Empresa / Proyecto' },
   requirements: { en: 'Your requirements...', es: 'Sus necesidades...' },
