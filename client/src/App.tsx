@@ -9,12 +9,18 @@ import { RAGProvider } from "./contexts/RAGContext";
 import Home from "./pages/Home";
 import Admin from "./pages/Admin";
 import SearchPage from "./pages/Search";
+import StructuralBoltsPage from "./pages/structural-bolts";
+import StainlessFastenersPage from "./pages/stainless-fasteners";
+import QuotePage from "./pages/Quote";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/search"} component={SearchPage} />
+      <Route path={"/structural-bolts"} component={StructuralBoltsPage} />
+      <Route path={"/stainless-fasteners"} component={StainlessFastenersPage} />
+      <Route path={"/quote"} component={QuotePage} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

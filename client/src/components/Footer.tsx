@@ -29,10 +29,10 @@ export default function Footer() {
           <div>
             <h4 className="font-bold text-lg mb-6">{t('footer.products')}</h4>
             <ul className="space-y-3 text-slate-400 text-sm">
-              <li><a href="#" className="hover:text-inox-teal transition-colors">Stainless Steel Bolts</a></li>
-              <li><a href="#" className="hover:text-inox-teal transition-colors">Structural Fixings</a></li>
+              <li><a href="/stainless-fasteners" className="hover:text-inox-teal transition-colors">Stainless Steel Fasteners</a></li>
+              <li><a href="/structural-bolts" className="hover:text-inox-teal transition-colors">Structural Bolts</a></li>
               <li><a href="#" className="hover:text-inox-teal transition-colors">Anchoring Systems</a></li>
-              <li><a href="#" className="hover:text-inox-teal transition-colors">Marine Grade (A4)</a></li>
+              <li><a href="/stainless-fasteners" className="hover:text-inox-teal transition-colors">Marine Grade (A4)</a></li>
             </ul>
           </div>
 
