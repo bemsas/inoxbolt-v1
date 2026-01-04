@@ -106,9 +106,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const originalName = file.originalFilename || 'document.pdf';
 
       // Auto-detect supplier from filename if not provided
-      let supplier = Array.isArray(supplierField) ? supplierField[0] : supplierField;
+      let supplier: string | undefined = Array.isArray(supplierField) ? supplierField[0] : supplierField;
       if (!supplier) {
-        supplier = detectSupplierFromFilename(originalName);
+        supplier = detectSupplierFromFilename(originalName) ?? undefined;
       }
 
       // Validate file type

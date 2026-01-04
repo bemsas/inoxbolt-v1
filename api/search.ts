@@ -58,7 +58,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supplierMap = new Map<string, string | null>();
     if (documentIds.length > 0) {
       try {
-        const { rows } = await sql`SELECT id, supplier FROM documents WHERE id = ANY(${documentIds})`;
+        // Vercel Postgres requires array to be passed as a string for ANY clause
+        const { rows } = await sql`SELECT id, supplier FROM documents WHERE id = ANY(${documentIds as any}::text[])`;
         for (const row of rows) {
           supplierMap.set(row.id, row.supplier);
         }
