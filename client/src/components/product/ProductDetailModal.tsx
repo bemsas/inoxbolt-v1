@@ -34,8 +34,29 @@ import {
   generateWhatsAppMessage,
   generateEmailSubject,
   generateEmailBody,
+  getSuggestedQuantity,
+  cleanProductContent,
+  getStandardInfo,
+  STANDARD_INFO,
 } from '@/types/product';
-import { toExtendedProductInfo } from '@/types/product-extended';
+import { toExtendedProductInfo, FastenerCategory } from '@/types/product-extended';
+
+/**
+ * Convert product type string to FastenerCategory
+ */
+function inferCategoryFromStandard(productType: string): FastenerCategory {
+  const lower = productType.toLowerCase();
+  if (lower.includes('bolt')) return 'bolt';
+  if (lower.includes('screw')) return 'screw';
+  if (lower.includes('nut')) return 'nut';
+  if (lower.includes('washer')) return 'washer';
+  if (lower.includes('anchor')) return 'anchor';
+  if (lower.includes('rivet')) return 'rivet';
+  if (lower.includes('rod')) return 'threaded_rod';
+  if (lower.includes('stud')) return 'bolt';
+  if (lower.includes('pin')) return 'pin';
+  return 'other';
+}
 
 // Import modular sections
 import { ProductHeader } from './sections/ProductHeader';
@@ -80,9 +101,37 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
     return toExtendedProductInfo(product);
   }, [product]);
 
+  // Get standard info for product type
+  const standardInfo = useMemo(() => {
+    if (!product?.standard) return null;
+    return getStandardInfo(product.standard);
+  }, [product?.standard]);
+
+  // Clean content for display
+  const contentDisplay = useMemo(() => {
+    if (!product?.content) return null;
+    return cleanProductContent(product.content);
+  }, [product?.content]);
+
+  // Set suggested quantity when product changes
+  useMemo(() => {
+    if (product) {
+      const suggested = getSuggestedQuantity(product);
+      setQuantity(String(suggested));
+    }
+  }, [product?.id]);
+
   if (!product || !extendedProduct) return null;
 
-  const productName = extractProductName(product);
+  // Use standard info to enhance product name
+  const productName = extractProductName({
+    ...product,
+    headType: product.headType || standardInfo?.head,
+  });
+
+  // Determine product type label for display
+  const productTypeLabel = standardInfo?.type || extendedProduct.category || 'Fastener';
+
   const units = UNITS[language] || UNITS.en;
 
   const handleAskAI = () => {
@@ -160,9 +209,9 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
         <ScrollArea className="flex-1 px-6">
           {/* Product Header Section */}
           <ProductHeader
-            name={extendedProduct.name || productName}
+            name={productName}
             brand={extendedProduct.brand}
-            category={extendedProduct.category}
+            category={standardInfo ? inferCategoryFromStandard(standardInfo.type) : extendedProduct.category}
             availability={extendedProduct.pricing?.availability}
             compact
             className="pb-4"
@@ -176,8 +225,8 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
             material={extendedProduct.material}
             mechanicalProperties={extendedProduct.mechanicalProperties}
             primaryStandard={extendedProduct.primaryStandard}
-            headType={extendedProduct.headType}
-            driveType={extendedProduct.driveType}
+            headType={extendedProduct.headType || standardInfo?.head}
+            driveType={extendedProduct.driveType || (standardInfo?.drive as any)}
             compact
             expandable
             className="pb-4"
@@ -197,15 +246,37 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
             </>
           )}
 
-          {/* Full content/description */}
-          {product.content && (
+          {/* Product Variants (if available) */}
+          {contentDisplay && contentDisplay.variants.length > 0 && (
             <>
               <Separator className="my-4" />
               <div className="pb-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">{t.description}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap line-clamp-4">
-                  {product.content}
-                </p>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                  {language === 'es' ? 'Tamaños Disponibles' : 'Available Sizes'}
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {contentDisplay.variants.slice(0, 6).map((variant, idx) => (
+                    <div
+                      key={idx}
+                      className="flex flex-col p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs"
+                    >
+                      <span className="font-semibold text-slate-900">{variant.size}</span>
+                      <div className="flex items-center gap-2 mt-1 text-slate-500">
+                        {variant.packaging && (
+                          <span>{variant.packaging} pcs</span>
+                        )}
+                        {variant.price && (
+                          <span className="text-inox-teal font-medium">{variant.price}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {contentDisplay.variants.length > 6 && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    +{contentDisplay.variants.length - 6} {language === 'es' ? 'más tamaños' : 'more sizes'}
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -256,7 +327,7 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
               </button>
             </div>
           ) : (
-            /* Quote Form */
+            /* Quote Form - B2B Optimized */
             <div className="space-y-4 pb-6">
               <Button
                 variant="ghost"
@@ -267,7 +338,25 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
                 ← {t.back}
               </Button>
 
-              {/* Quantity and Unit */}
+              {/* Product Summary */}
+              <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                <p className="font-semibold text-sm text-slate-900">{productName}</p>
+                <div className="flex flex-wrap gap-2 mt-2 text-xs text-slate-600">
+                  {product.material && (
+                    <span className="bg-white px-2 py-0.5 rounded border">{product.material}</span>
+                  )}
+                  {product.supplier && (
+                    <span className="bg-white px-2 py-0.5 rounded border">{product.supplier}</span>
+                  )}
+                  {standardInfo?.type && (
+                    <span className="bg-inox-teal/10 text-inox-teal px-2 py-0.5 rounded">
+                      {standardInfo.type}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Quantity and Unit - Enhanced with MOQ hint */}
               <div className="flex gap-3">
                 <div className="flex-1">
                   <Label htmlFor="quantity">{t.quantity}</Label>
@@ -275,10 +364,16 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
                     id="quantity"
                     type="number"
                     min="1"
+                    step={getSuggestedQuantity(product)}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="mt-1"
+                    className="mt-1 text-lg font-semibold"
                   />
+                  {product.packagingUnit && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {language === 'es' ? 'Unidad de embalaje' : 'Packaging unit'}: {product.packagingUnit}
+                    </p>
+                  )}
                 </div>
                 <div className="w-32">
                   <Label htmlFor="unit">{t.unitLabel}</Label>
@@ -297,6 +392,23 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
                 </div>
               </div>
 
+              {/* Quick Quantity Buttons */}
+              <div className="flex flex-wrap gap-2">
+                {[100, 250, 500, 1000].map((qty) => (
+                  <button
+                    key={qty}
+                    onClick={() => setQuantity(String(qty))}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                      quantity === String(qty)
+                        ? 'bg-inox-teal text-white border-inox-teal'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-inox-teal hover:text-inox-teal'
+                    }`}
+                  >
+                    {qty} {language === 'es' ? 'uds' : 'pcs'}
+                  </button>
+                ))}
+              </div>
+
               {/* Notes */}
               <div>
                 <Label htmlFor="notes">{t.notes}</Label>
@@ -305,7 +417,7 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder={t.notesPlaceholder}
-                  className="mt-1 min-h-[80px]"
+                  className="mt-1 min-h-[60px]"
                 />
               </div>
 
@@ -317,14 +429,23 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   className="mt-1"
+                  placeholder={language === 'es' ? 'Nombre de su empresa' : 'Your company name'}
                 />
               </div>
+
+              {/* Lead time hint */}
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <span>📦</span>
+                {language === 'es'
+                  ? 'Típicamente 2-5 días hábiles para stock. Consultaremos disponibilidad.'
+                  : 'Typically 2-5 business days for stock items. We will confirm availability.'}
+              </p>
 
               {/* Send buttons */}
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Button
                   onClick={handleWhatsApp}
-                  disabled={!quantity}
+                  disabled={!quantity || parseInt(quantity) < 1}
                   className="flex-1 gap-2 bg-[#25D366] hover:bg-[#20BD5A] text-white"
                 >
                   <ExternalLink className="w-4 h-4" />
@@ -332,7 +453,7 @@ export function ProductDetailModal({ open, onClose, product }: ProductDetailModa
                 </Button>
                 <Button
                   onClick={handleEmail}
-                  disabled={!quantity}
+                  disabled={!quantity || parseInt(quantity) < 1}
                   variant="outline"
                   className="flex-1 gap-2"
                 >
