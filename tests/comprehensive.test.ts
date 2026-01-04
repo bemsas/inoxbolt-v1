@@ -733,3 +733,229 @@ describe('Integration Tests', () => {
     });
   });
 });
+
+// =============================================================================
+// HYBRID SEARCH TESTS
+// =============================================================================
+
+describe('Hybrid Search System', () => {
+  describe('Query Classification', () => {
+    it('should classify DIN standard queries', async () => {
+      const { classifyQuery, QueryType } = await import('../lib/search-utils');
+
+      const result = classifyQuery('DIN 933');
+      expect(result.type).toBe(QueryType.STANDARD_CODE);
+      expect(result.extractedStandard).toBe('DIN933');
+      expect(result.extractedStandardDisplay).toBe('DIN 933');
+      expect(result.requiresExactMatch).toBe(true);
+      expect(result.confidence).toBeGreaterThan(0.9);
+    });
+
+    it('should classify ISO standard queries', async () => {
+      const { classifyQuery, QueryType } = await import('../lib/search-utils');
+
+      const result = classifyQuery('ISO 4017');
+      expect(result.type).toBe(QueryType.STANDARD_CODE);
+      expect(result.extractedStandard).toBe('ISO4017');
+      expect(result.requiresExactMatch).toBe(true);
+    });
+
+    it('should classify thread specification queries', async () => {
+      const { classifyQuery, QueryType } = await import('../lib/search-utils');
+
+      const result = classifyQuery('M8x40');
+      expect(result.type).toBe(QueryType.THREAD_SPEC);
+      expect(result.extractedThread).toBe('M8X40');
+    });
+
+    it('should classify mixed queries (standard + thread)', async () => {
+      const { classifyQuery, QueryType } = await import('../lib/search-utils');
+
+      const result = classifyQuery('DIN 933 M10x30 A2');
+      expect(result.type).toBe(QueryType.MIXED);
+      expect(result.extractedStandard).toBe('DIN933');
+      expect(result.extractedThread).toBe('M10X30');
+      expect(result.extractedMaterial).toBe('A2');
+      expect(result.requiresExactMatch).toBe(true);
+    });
+
+    it('should handle queries without spaces in standard', async () => {
+      const { classifyQuery, QueryType } = await import('../lib/search-utils');
+
+      const result = classifyQuery('DIN933');
+      expect(result.type).toBe(QueryType.STANDARD_CODE);
+      expect(result.extractedStandard).toBe('DIN933');
+    });
+  });
+
+  describe('Standard Normalization', () => {
+    it('should normalize standards for comparison', async () => {
+      const { normalizeStandard } = await import('../lib/search-utils');
+
+      expect(normalizeStandard('DIN 933')).toBe('DIN933');
+      expect(normalizeStandard('din933')).toBe('DIN933');
+      expect(normalizeStandard('DIN  933')).toBe('DIN933');
+      expect(normalizeStandard('ISO 4017')).toBe('ISO4017');
+    });
+  });
+
+  describe('Keyword Scoring', () => {
+    it('should give high score for exact standard match', async () => {
+      const { calculateKeywordScore, classifyQuery } = await import('../lib/search-utils');
+
+      const analysis = classifyQuery('DIN 933');
+      const result = {
+        metadata: { standard: 'DIN 933' },
+        content: 'DIN 933 Hexagon bolt'
+      };
+
+      const { score, exactStandardMatch, boosts } = calculateKeywordScore(result, analysis);
+
+      expect(exactStandardMatch).toBe(true);
+      expect(score).toBeGreaterThan(0.4);
+      expect(boosts.standardMatch).toBeGreaterThan(0);
+    });
+
+    it('should penalize similar but wrong standards', async () => {
+      const { calculateKeywordScore, classifyQuery } = await import('../lib/search-utils');
+
+      const analysis = classifyQuery('DIN 933');
+      const result = {
+        metadata: { standard: 'DIN 931' }, // Similar but wrong
+        content: 'DIN 931 Hexagon bolt partial thread'
+      };
+
+      const { score, exactStandardMatch, boosts } = calculateKeywordScore(result, analysis);
+
+      expect(exactStandardMatch).toBe(false);
+      expect(boosts.standardMatch).toBeLessThan(0); // Should be penalized
+    });
+
+    it('should give partial score for equivalent standards', async () => {
+      const { calculateKeywordScore, classifyQuery } = await import('../lib/search-utils');
+
+      const analysis = classifyQuery('DIN 933');
+      const result = {
+        metadata: { standard: 'ISO 4017' }, // Equivalent
+        content: 'ISO 4017 Hexagon bolt'
+      };
+
+      const { score, boosts } = calculateKeywordScore(result, analysis);
+
+      expect(boosts.standardMatch).toBeGreaterThan(0.2);
+      expect(boosts.standardMatch).toBeLessThan(0.5);
+    });
+  });
+
+  describe('Hybrid Scoring', () => {
+    it('should prioritize exact matches over high vector scores', async () => {
+      const { calculateHybridScore, classifyQuery } = await import('../lib/search-utils');
+
+      const analysis = classifyQuery('DIN 933');
+
+      // High vector score but no exact match
+      const scoreNoExact = calculateHybridScore(0.9, 0, false, analysis);
+
+      // Lower vector score but exact match
+      const scoreWithExact = calculateHybridScore(0.7, 0.5, true, analysis);
+
+      expect(scoreWithExact).toBeGreaterThan(scoreNoExact);
+    });
+  });
+
+  describe('Result Reranking', () => {
+    it('should put exact standard matches first', async () => {
+      const { rerankResults, classifyQuery } = await import('../lib/search-utils');
+
+      const analysis = classifyQuery('DIN 933');
+
+      const results = [
+        { id: '1', content: 'ISO 8765 hex bolt', score: 0.9, metadata: { standard: 'ISO 8765' } },
+        { id: '2', content: 'DIN 933 hex bolt', score: 0.8, metadata: { standard: 'DIN 933' } },
+        { id: '3', content: 'DIN 931 hex bolt', score: 0.85, metadata: { standard: 'DIN 931' } },
+      ];
+
+      const reranked = rerankResults(results, analysis);
+
+      // DIN 933 should be first despite lower vector score
+      expect(reranked[0].metadata.standard).toBe('DIN 933');
+      expect(reranked[0].exactStandardMatch).toBe(true);
+    });
+
+    it('should filter non-exact matches when enough exact matches exist', async () => {
+      const { filterByExactStandard, rerankResults, classifyQuery } = await import('../lib/search-utils');
+
+      const analysis = classifyQuery('DIN 933');
+
+      const results = [
+        { id: '1', content: 'DIN 933 A', score: 0.8, metadata: { standard: 'DIN 933' } },
+        { id: '2', content: 'DIN 933 B', score: 0.75, metadata: { standard: 'DIN 933' } },
+        { id: '3', content: 'DIN 933 C', score: 0.7, metadata: { standard: 'DIN 933' } },
+        { id: '4', content: 'ISO 8765', score: 0.9, metadata: { standard: 'ISO 8765' } },
+        { id: '5', content: 'DIN 931', score: 0.85, metadata: { standard: 'DIN 931' } },
+      ];
+
+      const reranked = rerankResults(results, analysis);
+      const filtered = filterByExactStandard(reranked, analysis);
+
+      // Should only have exact matches (3 or more = return only exact)
+      expect(filtered.every(r => r.exactStandardMatch)).toBe(true);
+      expect(filtered.length).toBe(3);
+    });
+  });
+
+  describe('Standard Relationships', () => {
+    it('should have DIN 933 and ISO 4017 as equivalents', async () => {
+      const { getStandardSuggestions } = await import('../lib/search-utils');
+
+      const din933 = getStandardSuggestions('DIN 933');
+      expect(din933?.equivalent).toContain('ISO4017');
+
+      const iso4017 = getStandardSuggestions('ISO 4017');
+      expect(iso4017?.equivalent).toContain('DIN933');
+    });
+
+    it('should have DIN 931 as similar to DIN 933', async () => {
+      const { getStandardSuggestions } = await import('../lib/search-utils');
+
+      const din933 = getStandardSuggestions('DIN 933');
+      expect(din933?.similar).toContain('DIN931');
+    });
+
+    it('should return null for unknown standards', async () => {
+      const { getStandardSuggestions } = await import('../lib/search-utils');
+
+      const unknown = getStandardSuggestions('XYZ 999');
+      expect(unknown).toBeNull();
+    });
+  });
+
+  describe('Extraction Functions', () => {
+    it('should extract thread specs from query', async () => {
+      const { extractThreadFromQuery } = await import('../lib/search-utils');
+
+      expect(extractThreadFromQuery('M8')).toBe('M8');
+      expect(extractThreadFromQuery('M8x40')).toBe('M8X40');
+      expect(extractThreadFromQuery('bolt m10x30')).toBe('M10X30');
+      expect(extractThreadFromQuery('M 10 x 25')).toBe('M10X25');
+    });
+
+    it('should extract material from query', async () => {
+      const { extractMaterialFromQuery } = await import('../lib/search-utils');
+
+      expect(extractMaterialFromQuery('A2 bolt')).toBe('A2');
+      expect(extractMaterialFromQuery('A4-70 screw')).toBe('A4');
+      expect(extractMaterialFromQuery('304 stainless')).toBe('A2');
+      expect(extractMaterialFromQuery('grade 8.8')).toBe('8.8');
+      expect(extractMaterialFromQuery('brass nut')).toBe('brass');
+    });
+
+    it('should extract supplier from query', async () => {
+      const { extractSupplierFromQuery } = await import('../lib/search-utils');
+
+      expect(extractSupplierFromQuery('reyher catalogue')).toBe('reyher');
+      expect(extractSupplierFromQuery('from WURTH')).toBe('wurth');
+      expect(extractSupplierFromQuery('wuerth bolt')).toBe('wurth');
+    });
+  });
+});

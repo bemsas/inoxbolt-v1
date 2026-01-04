@@ -253,10 +253,30 @@ export function extractProductMetadata(content: string): Partial<ChunkMetadata> 
     }
   }
 
-  // Detect standard
-  const standardMatch = content.match(/\b(DIN\s*\d+|ISO\s*\d+|EN\s*\d+|ANSI)\b/i);
-  if (standardMatch) {
-    metadata.standard = standardMatch[1].replace(/\s+/g, ' ').toUpperCase();
+  // Detect standard - extract ALL standards found, prioritize first one
+  // Also normalize format: "DIN 933" (with space for display)
+  const standardPatterns = [
+    /\b(DIN)\s*(\d+[A-Z]?)\b/gi,
+    /\b(ISO)\s*(\d+[A-Z]?)\b/gi,
+    /\b(EN)\s*(\d+[A-Z]?)\b/gi,
+  ];
+
+  const foundStandards: string[] = [];
+  for (const pattern of standardPatterns) {
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      const prefix = match[1].toUpperCase();
+      const number = match[2].toUpperCase();
+      const normalized = `${prefix} ${number}`; // Normalized with space
+      if (!foundStandards.includes(normalized)) {
+        foundStandards.push(normalized);
+      }
+    }
+  }
+
+  if (foundStandards.length > 0) {
+    // Use first found standard as primary, store all in keywords
+    metadata.standard = foundStandards[0];
   }
 
   // Extract price info
