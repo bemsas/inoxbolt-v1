@@ -4,7 +4,26 @@ import { nanoid } from 'nanoid';
 import { sql } from '@vercel/postgres';
 import { IncomingForm, Fields, Files } from 'formidable';
 import fs from 'fs';
-import { detectSupplierFromFilename } from '../../lib/document-processor';
+
+// Inline supplier detection to avoid bundling issues
+const SUPPLIER_PATTERNS: Record<string, RegExp> = {
+  'reyher': /reyher/i,
+  'wurth': /w[uü]rth|wuerth/i,
+  'bossard': /bossard/i,
+  'fabory': /fabory/i,
+  'hilti': /hilti/i,
+  'fischer': /fischer/i,
+};
+
+function detectSupplierFromFilename(filename: string): string | null {
+  const normalizedName = filename.toLowerCase();
+  for (const [supplier, pattern] of Object.entries(SUPPLIER_PATTERNS)) {
+    if (pattern.test(normalizedName)) {
+      return supplier;
+    }
+  }
+  return null;
+}
 
 // Helper to parse form data
 function parseForm(req: VercelRequest): Promise<{ fields: Fields; files: Files }> {
