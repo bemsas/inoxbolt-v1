@@ -8,7 +8,7 @@ import {
   extractPriceRange,
   extractKeywords,
   extractProductMetadata,
-} from './document-processor-utils';
+} from './document-processor-utils.js';
 
 // Re-export for external use
 export type { ChunkMetadata, ParsedProduct };
